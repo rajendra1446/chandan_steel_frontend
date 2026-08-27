@@ -1,0 +1,29 @@
+import Sidebar from "../../components/layout/Sidebar";
+import Header from "../../components/layout/Header";
+
+interface DashboardLayoutProps {
+    children: React.ReactNode;
+}
+
+export default function DashboardLayout({
+    children,
+}: DashboardLayoutProps) {
+
+    return (
+        <div className="min-h-screen bg-slate-100">
+
+            <Sidebar />
+
+            <div className="ml-64">
+
+                <Header />
+
+                <main className="p-8">
+                    {children}
+                </main>
+
+            </div>
+
+        </div>
+    );
+}
