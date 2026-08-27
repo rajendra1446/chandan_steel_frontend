@@ -1,13 +1,12 @@
 export interface User {
     id: number;
-    name: string;
+    name: string | null;
     email: string;
     role: string;
     unit_id: number | null;
-    unit_code?: string | null;
-    unit_name?: string | null;
+    unit_code: string | null;
+    unit_name: string | null;
 }
-
 export interface LoginRequest {
     email: string;
     password: string;

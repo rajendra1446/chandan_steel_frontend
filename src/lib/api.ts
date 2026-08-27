@@ -1,9 +1,9 @@
-import { TraceabilityData, Transfer } from "../types/traceability";
+import { TraceabilityData } from "../types/traceability";
+
 
 const API_URL =
     process.env.NEXT_PUBLIC_API_URL ||
     "https://chandan-steel-backend-4.onrender.com/api";
-
 
 // ========================================
 // REQUEST HELPER
@@ -29,8 +29,7 @@ async function request<T>(
 
                 ...(token
                     ? {
-                          Authorization:
-                              `Bearer ${token}`,
+                          Authorization: `Bearer ${token}`,
                       }
                     : {}),
 
@@ -43,14 +42,12 @@ async function request<T>(
 
     if (!response.ok) {
         throw new Error(
-            data.message ||
-                "Something went wrong"
+            data.message || "Something went wrong"
         );
     }
 
     return data;
 }
-
 
 // ========================================
 // TYPES
@@ -90,9 +87,30 @@ export interface ProductionBatch {
     status: string;
 
     remarks: string | null;
+
+    billet_consumed: string | null;
+    product_code: string | null;
+    product_name: string | null;
+    product_type: string | null;
+    product_quantity: string | null;
 }
+export interface Transfer {
+    id: number;
+    billet_id?: number;
+    billet_no?: string;
 
+    from_unit: string;
+    from_unit_name?: string;
 
+    to_unit: string;
+    to_unit_name?: string;
+
+    quantity: string;
+    transfer_date: string;
+
+    transfer_type: string;
+    remarks: string | null;
+}
 // ========================================
 // API
 // ========================================
@@ -111,9 +129,10 @@ export const api = {
             success: boolean;
             message: string;
             token: string;
+
             user: {
                 id: number;
-                name: string;
+                name: string | null;
                 email: string;
                 role: string;
                 unit_id: number | null;
@@ -125,7 +144,6 @@ export const api = {
             body: JSON.stringify(data),
         }),
 
-
     // ====================================
     // UNITS
     // ====================================
@@ -136,7 +154,6 @@ export const api = {
             count: number;
             data: Unit[];
         }>("/units"),
-
 
     createUnit: (data: {
         unit_code: string;
@@ -151,7 +168,6 @@ export const api = {
             body: JSON.stringify(data),
         }),
 
-
     // ====================================
     // PRODUCTS
     // ====================================
@@ -163,11 +179,10 @@ export const api = {
             data: Product[];
         }>("/products"),
 
-
     createProduct: (data: {
         product_code: string;
         product_name: string;
-        product_type?: string;
+        product_type?: string | null;
         unit_id?: number | null;
     }) =>
         request<{
@@ -177,7 +192,6 @@ export const api = {
             method: "POST",
             body: JSON.stringify(data),
         }),
-
 
     // ====================================
     // PRODUCTION
@@ -190,14 +204,11 @@ export const api = {
             data: ProductionBatch[];
         }>("/production"),
 
-
     createProduction: (data: {
         batch_no: string;
         unit_id: number;
-        production_date: string;
-        input_quantity: number;
-        output_quantity: number;
-        remarks?: string;
+        billet_id: number;
+        billet_consumed: number;
     }) =>
         request<{
             success: boolean;
@@ -207,7 +218,6 @@ export const api = {
             method: "POST",
             body: JSON.stringify(data),
         }),
-
 
     // ====================================
     // ADD BILLET INPUT
@@ -231,30 +241,62 @@ export const api = {
                 body: JSON.stringify(data),
             }
         ),
-         getTransfers: () =>
+
+    // ====================================
+    // ADD PRODUCTION OUTPUT
+    // ====================================
+
+    addProductionOutput: (
+        batchId: number,
+        data: {
+            product_id: number;
+            quantity: number;
+        }
+    ) =>
+        request<{
+            success: boolean;
+            message: string;
+            data: unknown;
+        }>(
+            `/production/${batchId}/outputs`,
+            {
+                method: "POST",
+                body: JSON.stringify(data),
+            }
+        ),
+
+    // ====================================
+    // TRANSFERS
+    // ====================================
+
+    
+    getTransfers: () =>
         request<{
             success: boolean;
             count: number;
-            data: unknown[];
+            data: Transfer[];
         }>("/transfers"),
-        createTransfer: (data: {
-    billet_id: number;
-    from_unit_id: number | null;
-    to_unit_id: number;
-    quantity: number;
-    transfer_type?: string;
-    remarks?: string;
-}) =>
-    request<{
-        success: boolean;
-        message: string;
-        data: Transfer;
-    }>("/transfers", {
-        method: "POST",
-        body: JSON.stringify(data),
-    }),
-           // TRACEABILITY
-    // =========================
+
+    createTransfer: (data: {
+        billet_id: number;
+        from_unit_id: number | null;
+        to_unit_id: number;
+        quantity: number;
+        transfer_type?: string;
+        remarks?: string;
+    }) =>
+        request<{
+            success: boolean;
+            message: string;
+            data: Transfer;
+        }>("/transfers", {
+            method: "POST",
+            body: JSON.stringify(data),
+        }),
+
+    // ====================================
+    // TRACEABILITY
+    // ====================================
 
     getBilletTraceability: (billetNo: string) =>
         request<{
@@ -263,84 +305,6 @@ export const api = {
         }>(
             `/traceability/billet/${encodeURIComponent(billetNo)}`
         ),
-
 };
 
-// export interface TraceabilityData {
-//     billet: {
-//         id: number;
-//         billet_no: string;
-//         quantity: string;
-//         unit: string;
-//         production_date: string;
-//         status: string;
-//     };
 
-//     source: {
-//         heat: {
-//             id: number;
-//             heat_no: string;
-//             heat_date: string;
-//         };
-
-//         grade: {
-//             id: number;
-//             code: string;
-//             name: string;
-//         };
-
-//         materials: {
-//             id: number;
-//             material_code: string;
-//             material_name: string;
-//             material_type: string;
-//             quantity: string;
-//             unit: string;
-//             added_at: string;
-//             remarks: string | null;
-//         }[];
-//     };
-
-//     transfers: {
-//         id: number;
-//         from_unit: string | null;
-//         from_unit_name: string | null;
-//         to_unit: string;
-//         to_unit_name: string;
-//         quantity: string;
-//         transfer_date: string;
-//         transfer_type: string;
-//         remarks: string | null;
-//     }[];
-
-//     production: {
-//         batch_id: number;
-//         batch_no: string;
-//         unit_code: string;
-//         unit_name: string;
-//         production_date: string;
-//         billet_consumed: string;
-//         product_code: string | null;
-//         product_name: string | null;
-//         product_type: string | null;
-//         product_quantity: string | null;
-//     }[];
-// }
-
-// export interface Transfer {
-//     id: number;
-//     billet_id: number;
-//     billet_no?: string;
-
-//     from_unit: string | null;
-//     from_unit_name?: string | null;
-
-//     to_unit: string;
-//     to_unit_name?: string | null;
-
-//     quantity: string;
-//     transfer_date: string;
-
-//     transfer_type: string;
-//     remarks: string | null;
-// }

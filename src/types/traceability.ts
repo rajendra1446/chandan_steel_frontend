@@ -39,7 +39,7 @@ export interface Transfer {
     to_unit_name: string;
     quantity: string;
     transfer_date: string;
-    transfer_type: string;
+    transfer_type: string|null ;
     remarks: string | null;
 }
 

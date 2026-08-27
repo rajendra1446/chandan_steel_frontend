@@ -16,25 +16,10 @@ import {
     X,
 } from "lucide-react";
 
-import { api } from "../../../lib/api";
+import { api, Unit,
+    Transfer, } from "../../../lib/api";
 
-interface Transfer {
-    id: number;
-    billet_id?: number;
-    billet_no?: string;
 
-    from_unit: string;
-    from_unit_name?: string;
-
-    to_unit: string;
-    to_unit_name?: string;
-
-    quantity: string;
-    transfer_date: string;
-
-    transfer_type: string;
-    remarks: string | null;
-}
 
 interface CreateTransfer {
     billet_id: number | null;
@@ -45,11 +30,7 @@ interface CreateTransfer {
     remarks: string;
 }
 
-interface Unit {
-    id: number;
-    unit_code: string;
-    unit_name: string;
-}
+
 
 export default function TransfersPage() {
 
@@ -145,87 +126,78 @@ export default function TransfersPage() {
     // CREATE TRANSFER
     // =========================
 
-    const handleSubmit = async (
-        e: FormEvent<HTMLFormElement>
-    ) => {
+   const handleSubmit = async (
+    e: FormEvent<HTMLFormElement>
+) => {
 
-        e.preventDefault();
+    e.preventDefault();
 
-        if (!form.billet_id) {
+    const billetId = form.billet_id;
+    const fromUnitId = form.from_unit_id;
+    const toUnitId = form.to_unit_id;
+    const quantity = form.quantity;
 
-            alert(
-                "Billet ID is required"
-            );
+    if (billetId === null) {
+        alert("Billet ID is required");
+        return;
+    }
 
-            return;
-        }
+    if (fromUnitId === null) {
+        alert("From Unit is required");
+        return;
+    }
 
-        if (!form.from_unit_id) {
+    if (toUnitId === null) {
+        alert("To Unit is required");
+        return;
+    }
 
-            alert(
-                "From Unit is required"
-            );
+    if (quantity === null) {
+        alert("Quantity is required");
+        return;
+    }
 
-            return;
-        }
+    try {
 
-        if (!form.to_unit_id) {
+        setSaving(true);
 
-            alert(
-                "To Unit is required"
-            );
+        await api.createTransfer({
+            billet_id: billetId,
+            from_unit_id: fromUnitId,
+            to_unit_id: toUnitId,
+            quantity: quantity,
+            transfer_type: form.transfer_type,
+            remarks: form.remarks,
+        });
 
-            return;
-        }
+        alert("Transfer created successfully");
 
-        if (!form.quantity) {
+        setForm({
+            billet_id: null,
+            from_unit_id: null,
+            to_unit_id: null,
+            quantity: null,
+            transfer_type: "TRANSFER",
+            remarks: "",
+        });
 
-            alert(
-                "Quantity is required"
-            );
+        setShowForm(false);
 
-            return;
-        }
+        await loadTransfers();
 
-        try {
+    } catch (error) {
 
-            setSaving(true);
+        alert(
+            error instanceof Error
+                ? error.message
+                : "Transfer creation failed"
+        );
 
-            await api.createTransfer(
-                form
-            );
+    } finally {
 
-            alert(
-                "Transfer created successfully"
-            );
-
-            setForm({
-                billet_id: null,
-                from_unit_id: null,
-                to_unit_id: null,
-                quantity: null,
-                transfer_type: "TRANSFER",
-                remarks: "",
-            });
-
-            setShowForm(false);
-
-            await loadTransfers();
-
-        } catch (error) {
-
-            alert(
-                error instanceof Error
-                    ? error.message
-                    : "Transfer creation failed"
-            );
-
-        } finally {
-
-            setSaving(false);
-        }
-    };
-
+        setSaving(false);
+    }
+};
 
     return (
 

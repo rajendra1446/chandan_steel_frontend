@@ -14,19 +14,29 @@ import {
 
 import { api } from "../../../lib/api";
 
-interface ProductionBatch {
+export interface ProductionBatch {
     id: number;
     batch_no: string;
+
     unit_code: string;
     unit_name: string;
+
     production_date: string;
-    billet_consumed: string;
+
+    input_quantity: string;
+    output_quantity: string;
+
+    unit: string;
+    status: string;
+
+    remarks: string | null;
+
+    billet_consumed: string | null;
     product_code: string | null;
     product_name: string | null;
     product_type: string | null;
     product_quantity: string | null;
 }
-
 interface Unit {
     id: number;
     unit_code: string;
@@ -36,8 +46,8 @@ interface Unit {
 interface Product {
     id: number;
     product_code: string;
-    product_name: string;
-    product_type: string;
+    product_name: string | null;
+    product_type: string|null;
 }
 
 interface ProductionForm {

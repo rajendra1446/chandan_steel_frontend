@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 import Sidebar from "../../components/layout/Sidebar";
 import Header from "../../components/layout/Header";
 
@@ -9,6 +13,8 @@ export default function DashboardLayout({
     children,
 }: DashboardLayoutProps) {
 
+    const [mobileOpen, setMobileOpen] = useState(false);
+
     return (
         <div className="min-h-screen bg-slate-100">
 
@@ -16,7 +22,9 @@ export default function DashboardLayout({
 
             <div className="ml-64">
 
-                <Header />
+                <Header
+                    setMobileOpen={setMobileOpen}
+                />
 
                 <main className="p-8">
                     {children}
