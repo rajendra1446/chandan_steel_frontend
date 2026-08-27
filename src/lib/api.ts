@@ -2,7 +2,7 @@ import { TraceabilityData, Transfer } from "../types/traceability";
 
 const API_URL =
     process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:5000/api";
+    "https://chandan-steel-backend-4.onrender.com/api";
 
 
 // ========================================
@@ -259,7 +259,7 @@ export const api = {
     getBilletTraceability: (billetNo: string) =>
         request<{
             success: boolean;
-            data: TraceabilitryData;
+            data: TraceabilityData;
         }>(
             `/traceability/billet/${encodeURIComponent(billetNo)}`
         ),
