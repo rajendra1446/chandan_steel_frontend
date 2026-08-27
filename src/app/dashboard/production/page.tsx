@@ -10,6 +10,9 @@ import {
     RefreshCw,
     X,
     ArrowRight,
+    Scale,
+    Calendar,
+    Layers
 } from "lucide-react";
 
 import { api } from "../../../lib/api";
@@ -17,26 +20,21 @@ import { api } from "../../../lib/api";
 export interface ProductionBatch {
     id: number;
     batch_no: string;
-
     unit_code: string;
     unit_name: string;
-
     production_date: string;
-
     input_quantity: string;
     output_quantity: string;
-
     unit: string;
     status: string;
-
     remarks: string | null;
-
     billet_consumed: string | null;
     product_code: string | null;
     product_name: string | null;
     product_type: string | null;
     product_quantity: string | null;
 }
+
 interface Unit {
     id: number;
     unit_code: string;
@@ -47,7 +45,7 @@ interface Product {
     id: number;
     product_code: string;
     product_name: string | null;
-    product_type: string|null;
+    product_type: string | null;
 }
 
 interface ProductionForm {
@@ -73,42 +71,35 @@ export default function ProductionPage() {
     const [showCreate, setShowCreate] = useState(false);
     const [showOutput, setShowOutput] = useState(false);
 
-    const [selectedBatch, setSelectedBatch] =
-        useState<ProductionBatch | null>(null);
-
+    const [selectedBatch, setSelectedBatch] = useState<ProductionBatch | null>(null);
     const [error, setError] = useState("");
 
-    const [productionForm, setProductionForm] =
-        useState<ProductionForm>({
-            batch_no: "",
-            unit_id: null,
-            billet_id: null,
-            billet_consumed: null,
-        });
+    const [productionForm, setProductionForm] = useState<ProductionForm>({
+        batch_no: "",
+        unit_id: null,
+        billet_id: null,
+        billet_consumed: null,
+    });
 
-    const [outputForm, setOutputForm] =
-        useState<OutputForm>({
-            product_id: null,
-            quantity: null,
-        });
+    const [outputForm, setOutputForm] = useState<OutputForm>({
+        product_id: null,
+        quantity: null,
+    });
 
     // =========================
     // LOAD PRODUCTION
     // =========================
-
     const loadProduction = async () => {
         try {
             setLoading(true);
             setError("");
-
             const response = await api.getProduction();
-
             setBatches(response.data);
         } catch (error) {
             setError(
                 error instanceof Error
                     ? error.message
-                    : "Unable to load production"
+                    : "Unable to load production records"
             );
         } finally {
             setLoading(false);
@@ -116,30 +107,23 @@ export default function ProductionPage() {
     };
 
     // =========================
-    // LOAD UNITS
+    // LOAD UNITS & PRODUCTS
     // =========================
-
     const loadUnits = async () => {
         try {
             const response = await api.getUnits();
-
             setUnits(response.data);
         } catch (error) {
-            console.error(error);
+            console.error("Failed to load units:", error);
         }
     };
-
-    // =========================
-    // LOAD PRODUCTS
-    // =========================
 
     const loadProducts = async () => {
         try {
             const response = await api.getProducts();
-
             setProducts(response.data);
         } catch (error) {
-            console.error(error);
+            console.error("Failed to load products:", error);
         }
     };
 
@@ -150,45 +134,24 @@ export default function ProductionPage() {
     }, []);
 
     // =========================
-    // CREATE PRODUCTION
+    // CREATE PRODUCTION BATCH
     // =========================
-
-    const handleCreateProduction = async (
-        e: FormEvent<HTMLFormElement>
-    ) => {
+    const handleCreateProduction = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
-        if (!productionForm.batch_no) {
-            alert("Batch number is required");
-            return;
-        }
-
-        if (!productionForm.unit_id) {
-            alert("Unit is required");
-            return;
-        }
-
-        if (!productionForm.billet_id) {
-            alert("Billet ID is required");
-            return;
-        }
-
-        if (!productionForm.billet_consumed) {
-            alert("Billet consumed quantity is required");
+        if (!productionForm.batch_no || !productionForm.unit_id || !productionForm.billet_id || !productionForm.billet_consumed) {
+            alert("Kripya sabhi fields bharein.");
             return;
         }
 
         try {
             setSaving(true);
-
             await api.createProduction({
-                batch_no: productionForm.batch_no,
+                batch_no: productionForm.batch_no.trim(),
                 unit_id: productionForm.unit_id,
                 billet_id: productionForm.billet_id,
                 billet_consumed: productionForm.billet_consumed,
             });
-
-            alert("Production batch created successfully");
 
             setProductionForm({
                 batch_no: "",
@@ -198,13 +161,12 @@ export default function ProductionPage() {
             });
 
             setShowCreate(false);
-
             await loadProduction();
         } catch (error) {
             alert(
                 error instanceof Error
                     ? error.message
-                    : "Production creation failed"
+                    : "Production batch creation failed"
             );
         } finally {
             setSaving(false);
@@ -214,38 +176,20 @@ export default function ProductionPage() {
     // =========================
     // ADD PRODUCT OUTPUT
     // =========================
-
-    const handleAddOutput = async (
-        e: FormEvent<HTMLFormElement>
-    ) => {
+    const handleAddOutput = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
-        if (!selectedBatch) {
-            return;
-        }
-
-        if (!outputForm.product_id) {
-            alert("Product is required");
-            return;
-        }
-
-        if (!outputForm.quantity) {
-            alert("Quantity is required");
+        if (!selectedBatch || !outputForm.product_id || !outputForm.quantity) {
+            alert("Product And Quantity fields are required.");
             return;
         }
 
         try {
             setSaving(true);
-
-            await api.addProductionOutput(
-                selectedBatch.id,
-                {
-                    product_id: outputForm.product_id,
-                    quantity: outputForm.quantity,
-                }
-            );
-
-            alert("Production output added successfully");
+            await api.addProductionOutput(selectedBatch.id, {
+                product_id: outputForm.product_id,
+                quantity: outputForm.quantity,
+            });
 
             setOutputForm({
                 product_id: null,
@@ -253,7 +197,6 @@ export default function ProductionPage() {
             });
 
             setShowOutput(false);
-
             await loadProduction();
         } catch (error) {
             alert(
@@ -266,97 +209,123 @@ export default function ProductionPage() {
         }
     };
 
+    // Derived Statistics
+    const totalBilletConsumed = batches.reduce(
+        (sum, batch) => sum + Number(batch.billet_consumed || 0),
+        0
+    );
+    const totalFinishedOutput = batches.reduce(
+        (sum, batch) => sum + Number(batch.product_quantity || 0),
+        0
+    );
+
     return (
-        <div>
+        <div className="p-6 space-y-6  mx-auto">
             {/* ================================= */}
             {/* HEADER */}
             {/* ================================= */}
-
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 mb-8">
-                <div>
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center">
-                            <Factory
-                                size={25}
-                                className="text-orange-500"
-                            />
-                        </div>
-
-                        <div>
-                            <h1 className="text-3xl font-bold text-slate-900">
-                                Production
-                            </h1>
-
-                            <p className="text-slate-500 mt-1">
-                                Manage production batches and product outputs
-                            </p>
-                        </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center shadow-2xs">
+                        <Factory className="text-orange-500" size={24} />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                            Rolling Mill & Production
+                        </h1>
+                        <p className="text-sm text-slate-500 mt-0.5">
+                            Track billet consumption, rolling batches, and finished product outputs
+                        </p>
                     </div>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex items-center gap-3">
                     <button
                         onClick={loadProduction}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-white border rounded-lg hover:bg-slate-50"
+                        className="bg-white border border-slate-300 hover:bg-slate-50 active:bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition shadow-2xs"
                     >
-                        <RefreshCw size={17} />
+                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                         Refresh
                     </button>
 
                     <button
                         onClick={() => setShowCreate(!showCreate)}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold"
+                        className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm font-semibold transition shadow-xs"
                     >
-                        {showCreate ? (
-                            <X size={18} />
-                        ) : (
-                            <Plus size={18} />
-                        )}
-
-                        {showCreate
-                            ? "Close"
-                            : "New Production"}
+                        {showCreate ? <X size={18} /> : <Plus size={18} />}
+                        {showCreate ? "Close" : "New Production Batch"}
                     </button>
                 </div>
             </div>
 
             {/* ================================= */}
-            {/* ERROR */}
+            {/* ERROR BANNER */}
             {/* ================================= */}
-
             {error && (
-                <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-5 py-4 rounded-xl">
-                    {error}
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-between">
+                    <span>{error}</span>
+                    <button onClick={() => setError("")} className="text-red-400 hover:text-red-600">✕</button>
                 </div>
             )}
 
             {/* ================================= */}
+            {/* SUMMARY CARDS */}
+            {/* ================================= */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <SummaryCard
+                    title="Total Batches"
+                    value={batches.length}
+                    subtitle="Logged Rolling Runs"
+                    icon={<Layers size={22} />}
+                />
+                <SummaryCard
+                    title="Billet Consumed"
+                    value={`${totalBilletConsumed.toLocaleString("en-IN", { maximumFractionDigits: 2 })} KG`}
+                    subtitle="Total Raw Input"
+                    icon={<Package size={22} />}
+                />
+                <SummaryCard
+                    title="Finished Output"
+                    value={`${totalFinishedOutput.toLocaleString("en-IN", { maximumFractionDigits: 2 })} KG`}
+                    subtitle="Total Yield Dispatched"
+                    icon={<Scale size={22} />}
+                />
+                <SummaryCard
+                    title="Active Mills / Units"
+                    value={new Set(batches.map((b) => b.unit_code).filter(Boolean)).size}
+                    subtitle="Operating Stations"
+                    icon={<Activity size={22} />}
+                />
+            </div>
+
+            {/* ================================= */}
             {/* CREATE PRODUCTION FORM */}
             {/* ================================= */}
-
             {showCreate && (
                 <form
                     onSubmit={handleCreateProduction}
-                    className="bg-white border rounded-2xl p-6 mb-6"
+                    className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5 animate-in fade-in duration-200"
                 >
-                    <div className="mb-6">
-                        <h2 className="text-xl font-bold">
-                            Create Production Batch
-                        </h2>
-
-                        <p className="text-sm text-slate-500 mt-1">
-                            Create a production batch from transferred billet
-                        </p>
+                    <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
+                        <div>
+                            <h2 className="text-lg font-bold text-slate-900">
+                                Launch New Production Batch
+                            </h2>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                Feed transferred cast billet stock into mill lines
+                            </p>
+                        </div>
+                        <span className="text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md">
+                            Input Stage
+                        </span>
                     </div>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {/* BATCH NO */}
-
                         <div>
-                            <label className="block text-sm font-medium mb-2">
-                                Batch No
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                                Batch Number *
                             </label>
-
                             <input
                                 type="text"
                                 value={productionForm.batch_no}
@@ -366,349 +335,216 @@ export default function ProductionPage() {
                                         batch_no: e.target.value,
                                     })
                                 }
-                                placeholder="WRM260825001"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500"
+                                placeholder="e.g. WRM260825001"
+                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm transition"
                                 required
                             />
                         </div>
 
                         {/* UNIT */}
-
                         <div>
-                            <label className="block text-sm font-medium mb-2">
-                                Production Unit
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                                Production Mill / Unit *
                             </label>
-
                             <select
-                                value={
-                                    productionForm.unit_id ?? ""
-                                }
+                                value={productionForm.unit_id ?? ""}
                                 onChange={(e) =>
                                     setProductionForm({
                                         ...productionForm,
-                                        unit_id: e.target.value
-                                            ? Number(e.target.value)
-                                            : null,
+                                        unit_id: e.target.value ? Number(e.target.value) : null,
                                     })
                                 }
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500"
+                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm transition"
                                 required
                             >
-                                <option value="">
-                                    Select Unit
-                                </option>
-
+                                <option value="">-- Choose Mill Line --</option>
                                 {units.map((unit) => (
-                                    <option
-                                        key={unit.id}
-                                        value={unit.id}
-                                    >
-                                        {unit.unit_code} -{" "}
-                                        {unit.unit_name}
+                                    <option key={unit.id} value={unit.id}>
+                                        {unit.unit_code} - {unit.unit_name}
                                     </option>
                                 ))}
                             </select>
                         </div>
 
                         {/* BILLET ID */}
-
                         <div>
-                            <label className="block text-sm font-medium mb-2">
-                                Billet ID
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                                Source Billet ID *
                             </label>
-
                             <input
                                 type="number"
-                                value={
-                                    productionForm.billet_id ?? ""
-                                }
+                                value={productionForm.billet_id ?? ""}
                                 onChange={(e) =>
                                     setProductionForm({
                                         ...productionForm,
-                                        billet_id: e.target.value
-                                            ? Number(e.target.value)
-                                            : null,
+                                        billet_id: e.target.value ? Number(e.target.value) : null,
                                     })
                                 }
-                                placeholder="Example: 1"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500"
+                                placeholder="e.g. 101"
+                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm transition"
                                 required
                             />
                         </div>
 
                         {/* BILLET CONSUMED */}
-
                         <div>
-                            <label className="block text-sm font-medium mb-2">
-                                Billet Consumed (KG)
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                                Consumed Weight (KG) *
                             </label>
-
                             <input
                                 type="number"
                                 step="0.001"
-                                value={
-                                    productionForm.billet_consumed ?? ""
-                                }
+                                value={productionForm.billet_consumed ?? ""}
                                 onChange={(e) =>
                                     setProductionForm({
                                         ...productionForm,
-                                        billet_consumed: e.target.value
-                                            ? Number(e.target.value)
-                                            : null,
+                                        billet_consumed: e.target.value ? Number(e.target.value) : null,
                                     })
                                 }
-                                placeholder="3000"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500"
+                                placeholder="e.g. 3000.00"
+                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm transition"
                                 required
                             />
                         </div>
                     </div>
 
-                    <div className="flex justify-end mt-6">
+                    <div className="flex justify-end pt-2">
                         <button
                             type="submit"
                             disabled={saving}
-                            className="px-6 py-3 bg-slate-950 hover:bg-slate-800 text-white rounded-lg font-semibold disabled:opacity-50"
+                            className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-7 py-2.5 rounded-lg text-sm font-semibold transition disabled:opacity-50 shadow-xs"
                         >
-                            {saving
-                                ? "Creating..."
-                                : "Create Batch"}
+                            {saving ? "Creating Batch..." : "Create Production Batch"}
                         </button>
                     </div>
                 </form>
             )}
 
             {/* ================================= */}
-            {/* SUMMARY */}
-            {/* ================================= */}
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
-                <SummaryCard
-                    title="Total Batches"
-                    value={batches.length}
-                    icon={<Factory size={22} />}
-                />
-
-                <SummaryCard
-                    title="Billet Consumed"
-                    value={`${batches
-                        .reduce(
-                            (sum, batch) =>
-                                sum +
-                                Number(
-                                    batch.billet_consumed || 0
-                                ),
-                            0
-                        )
-                        .toFixed(2)} KG`}
-                    icon={<Package size={22} />}
-                />
-
-                <SummaryCard
-                    title="Product Outputs"
-                    value={
-                        batches.filter(
-                            (batch) =>
-                                batch.product_name
-                        ).length
-                    }
-                    icon={
-                        <CheckCircle2 size={22} />
-                    }
-                />
-
-                <SummaryCard
-                    title="Active Units"
-                    value={
-                        new Set(
-                            batches.map(
-                                (batch) =>
-                                    batch.unit_code
-                            )
-                        ).size
-                    }
-                    icon={<Activity size={22} />}
-                />
-            </div>
-
-            {/* ================================= */}
             {/* PRODUCTION TABLE */}
             {/* ================================= */}
-
-            <div className="bg-white border rounded-2xl overflow-hidden">
-                <div className="p-6 border-b">
-                    <h2 className="text-xl font-bold">
-                        Production Batches
-                    </h2>
-
-                    <p className="text-sm text-slate-500 mt-1">
-                        Track billet consumption and final product output
-                    </p>
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="p-5 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                        <h2 className="font-bold text-slate-900">Production Batches History</h2>
+                        <p className="text-xs text-slate-500">
+                            Raw billet consumption linked directly to finished rolled outputs
+                        </p>
+                    </div>
+                    <span className="bg-orange-50 border border-orange-200 text-orange-600 px-3 py-1 rounded-md text-xs font-semibold w-fit">
+                        {batches.length} Batches
+                    </span>
                 </div>
 
                 {loading ? (
-                    <div className="p-12 text-center text-slate-500">
-                        Loading production...
+                    <div className="p-16 text-center text-slate-500 text-sm flex flex-col items-center justify-center gap-3">
+                        <RefreshCw size={24} className="animate-spin text-orange-500" />
+                        <span>Loading production records...</span>
                     </div>
                 ) : batches.length === 0 ? (
-                    <div className="p-12 text-center">
-                        <Factory
-                            size={45}
-                            className="mx-auto text-slate-300"
-                        />
-
-                        <p className="mt-4 font-semibold">
-                            No production batches found
-                        </p>
-
-                        <p className="text-sm text-slate-500 mt-1">
-                            Create your first production batch.
+                    <div className="p-16 text-center">
+                        <div className="w-16 h-16 bg-orange-50 text-orange-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <Factory size={32} />
+                        </div>
+                        <h3 className="font-bold text-slate-800 text-base">No production batches found</h3>
+                        <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                            Click &quot;New Production Batch&quot; above to initialize your first mill run.
                         </p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-slate-50">
+                        <table className="w-full text-left border-collapse text-sm">
+                            <thead className="bg-slate-50 border-b border-slate-200">
                                 <tr>
-                                    <th className="text-left px-6 py-4 text-sm font-semibold">
-                                        Batch
-                                    </th>
-
-                                    <th className="text-left px-6 py-4 text-sm font-semibold">
-                                        Unit
-                                    </th>
-
-                                    <th className="text-left px-6 py-4 text-sm font-semibold">
-                                        Production Date
-                                    </th>
-
-                                    <th className="text-left px-6 py-4 text-sm font-semibold">
-                                        Billet Consumed
-                                    </th>
-
-                                    <th className="text-left px-6 py-4 text-sm font-semibold">
-                                        Product
-                                    </th>
-
-                                    <th className="text-left px-6 py-4 text-sm font-semibold">
-                                        Output
-                                    </th>
-
-                                    <th className="text-right px-6 py-4 text-sm font-semibold">
-                                        Action
-                                    </th>
+                                    <th className="px-6 py-4 font-semibold text-slate-600">Batch Details</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-600">Unit / Mill</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-600">Date</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-600">Billet In</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-600">Product Code</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-600">Finished Output</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-600 text-right">Action</th>
                                 </tr>
                             </thead>
 
-                            <tbody>
+                            <tbody className="divide-y divide-slate-100">
                                 {batches.map((batch) => (
-                                    <tr
-                                        key={batch.id}
-                                        className="border-t hover:bg-slate-50"
-                                    >
+                                    <tr key={batch.id} className="hover:bg-orange-50/30 transition-colors">
                                         {/* BATCH */}
-
                                         <td className="px-6 py-4">
-                                            <p className="font-semibold">
+                                            <div className="font-bold text-orange-600 font-mono">
                                                 {batch.batch_no}
-                                            </p>
-
-                                            <p className="text-xs text-slate-500">
-                                                ID: {batch.id}
-                                            </p>
+                                            </div>
+                                            <div className="text-xs text-slate-400 mt-0.5">
+                                                ID: #{batch.id}
+                                            </div>
                                         </td>
 
                                         {/* UNIT */}
-
                                         <td className="px-6 py-4">
-                                            <p className="font-semibold">
+                                            <span className="font-medium text-slate-900 bg-slate-100 px-2.5 py-1 rounded text-xs">
                                                 {batch.unit_code}
-                                            </p>
-
-                                            <p className="text-xs text-slate-500">
+                                            </span>
+                                            <div className="text-xs text-slate-500 mt-1">
                                                 {batch.unit_name}
-                                            </p>
+                                            </div>
                                         </td>
 
                                         {/* DATE */}
-
-                                        <td className="px-6 py-4 text-sm">
-                                            {formatDate(
-                                                batch.production_date
-                                            )}
+                                        <td className="px-6 py-4 text-slate-600 text-xs whitespace-nowrap">
+                                            <div className="flex items-center gap-1.5 font-medium text-slate-700">
+                                                <Calendar size={13} className="text-slate-400" />
+                                                {formatDate(batch.production_date)}
+                                            </div>
                                         </td>
 
-                                        {/* BILLET */}
-
+                                        {/* BILLET CONSUMED */}
                                         <td className="px-6 py-4">
-                                            <span className="font-semibold">
-                                                {
-                                                    batch.billet_consumed
-                                                }
+                                            <span className="font-semibold text-slate-900">
+                                                {Number(batch.billet_consumed || 0).toLocaleString()}
                                             </span>
-
-                                            <span className="text-xs text-slate-500 ml-1">
-                                                KG
-                                            </span>
+                                            <span className="text-xs text-slate-500 ml-1 font-medium">KG</span>
                                         </td>
 
                                         {/* PRODUCT */}
-
                                         <td className="px-6 py-4">
                                             {batch.product_name ? (
-                                                <>
-                                                    <p className="font-semibold">
-                                                        {
-                                                            batch.product_name
-                                                        }
+                                                <div>
+                                                    <p className="font-semibold text-slate-900">
+                                                        {batch.product_name}
                                                     </p>
-
-                                                    <p className="text-xs text-slate-500">
-                                                        {
-                                                            batch.product_code
-                                                        }
+                                                    <p className="text-xs font-mono text-orange-600">
+                                                        {batch.product_code}
                                                     </p>
-                                                </>
+                                                </div>
                                             ) : (
-                                                <span className="text-slate-400">
-                                                    No output
+                                                <span className="text-xs italic text-slate-400 bg-slate-50 border border-dashed border-slate-200 px-2.5 py-1 rounded-md">
+                                                    Pending Output
                                                 </span>
                                             )}
                                         </td>
 
                                         {/* OUTPUT */}
-
                                         <td className="px-6 py-4">
                                             {batch.product_quantity ? (
-                                                <span className="font-semibold">
-                                                    {
-                                                        batch.product_quantity
-                                                    }{" "}
-                                                    KG
-                                                </span>
+                                                <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 px-2.5 py-1 rounded-md font-semibold text-xs">
+                                                    <CheckCircle2 size={13} className="text-emerald-600" />
+                                                    {Number(batch.product_quantity).toLocaleString()} KG
+                                                </div>
                                             ) : (
-                                                "-"
+                                                <span className="text-slate-400 text-xs">-</span>
                                             )}
                                         </td>
 
                                         {/* ACTION */}
-
                                         <td className="px-6 py-4 text-right">
                                             <button
                                                 onClick={() => {
-                                                    setSelectedBatch(
-                                                        batch
-                                                    );
-                                                    setShowOutput(
-                                                        true
-                                                    );
+                                                    setSelectedBatch(batch);
+                                                    setShowOutput(true);
                                                 }}
-                                                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg font-medium"
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 border border-orange-200 text-orange-600 hover:bg-orange-500 hover:text-white rounded-lg text-xs font-semibold transition"
                                             >
-                                                <Plus
-                                                    size={16}
-                                                />
-
+                                                <Plus size={14} />
                                                 Add Output
                                             </button>
                                         </td>
@@ -723,147 +559,107 @@ export default function ProductionPage() {
             {/* ================================= */}
             {/* OUTPUT MODAL */}
             {/* ================================= */}
-
             {showOutput && selectedBatch && (
-                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
                     <form
                         onSubmit={handleAddOutput}
-                        className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-6"
+                        className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-100 p-6 space-y-5"
                     >
-                        <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                             <div>
-                                <h2 className="text-xl font-bold">
-                                    Add Production Output
+                                <h2 className="text-lg font-bold text-slate-900">
+                                    Record Product Output
                                 </h2>
-
-                                <p className="text-sm text-slate-500 mt-1">
-                                    Batch:{" "}
-                                    <span className="font-semibold">
-                                        {
-                                            selectedBatch.batch_no
-                                        }
-                                    </span>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    Batch Ref: <span className="font-bold text-orange-600 font-mono">{selectedBatch.batch_no}</span>
                                 </p>
                             </div>
 
                             <button
                                 type="button"
-                                onClick={() =>
-                                    setShowOutput(false)
-                                }
-                                className="p-2 hover:bg-slate-100 rounded-lg"
+                                onClick={() => setShowOutput(false)}
+                                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition"
                             >
                                 <X size={20} />
                             </button>
                         </div>
 
-                        {/* PRODUCT */}
-
-                        <div className="mb-5">
-                            <label className="block text-sm font-medium mb-2">
-                                Product
-                            </label>
-
-                            <select
-                                value={
-                                    outputForm.product_id ??
-                                    ""
-                                }
-                                onChange={(e) =>
-                                    setOutputForm({
-                                        ...outputForm,
-                                        product_id: e.target.value
-                                            ? Number(e.target.value)
-                                            : null,
-                                    })
-                                }
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500"
-                                required
-                            >
-                                <option value="">
-                                    Select Product
-                                </option>
-
-                                {products.map(
-                                    (product) => (
-                                        <option
-                                            key={
-                                                product.id
-                                            }
-                                            value={
-                                                product.id
-                                            }
-                                        >
-                                            {
-                                                product.product_code
-                                            }{" "}
-                                            -{" "}
-                                            {
-                                                product.product_name
-                                            }
-                                        </option>
-                                    )
-                                )}
-                            </select>
-                        </div>
-
-                        {/* QUANTITY */}
-
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium mb-2">
-                                Product Quantity (KG)
-                            </label>
-
-                            <input
-                                type="number"
-                                step="0.001"
-                                min="0"
-                                value={
-                                    outputForm.quantity ??
-                                    ""
-                                }
-                                onChange={(e) =>
-                                    setOutputForm({
-                                        ...outputForm,
-                                        quantity: e.target.value
-                                            ? Number(e.target.value)
-                                            : null,
-                                    })
-                                }
-                                placeholder="Example: 2850"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500"
-                                required
-                            />
-                        </div>
-
-                        {/* FLOW */}
-
-                        <div className="bg-slate-50 rounded-xl p-4 mb-6">
-                            <div className="flex items-center justify-center gap-3 text-sm font-medium">
-                                <span>
-                                    {selectedBatch.unit_code}
+                        {/* FLOW STEP BANNER */}
+                        <div className="bg-orange-50/60 border border-orange-200/80 rounded-xl p-3">
+                            <div className="flex items-center justify-center gap-3 text-xs font-semibold text-slate-700">
+                                <span className="bg-white px-2 py-1 rounded shadow-2xs border border-orange-200">
+                                    Unit: {selectedBatch.unit_code}
                                 </span>
-
-                                <ArrowRight
-                                    size={18}
-                                    className="text-orange-500"
-                                />
-
-                                <span>
-                                    Product Output
+                                <ArrowRight size={14} className="text-orange-500" />
+                                <span className="bg-white px-2 py-1 rounded shadow-2xs border border-orange-200">
+                                    Input: {Number(selectedBatch.billet_consumed || 0).toLocaleString()} KG
                                 </span>
                             </div>
                         </div>
 
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold disabled:opacity-50"
-                        >
-                            {saving
-                                ? "Adding..."
-                                : "Add Production Output"}
-                        </button>
+                        {/* PRODUCT SELECT */}
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                                Select Finished Product *
+                            </label>
+                            <select
+                                value={outputForm.product_id ?? ""}
+                                onChange={(e) =>
+                                    setOutputForm({
+                                        ...outputForm,
+                                        product_id: e.target.value ? Number(e.target.value) : null,
+                                    })
+                                }
+                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm transition"
+                                required
+                            >
+                                <option value="">-- Choose Product --</option>
+                                {products.map((product) => (
+                                    <option key={product.id} value={product.id}>
+                                        {product.product_code} - {product.product_name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* QUANTITY */}
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                                Finished Yield Weight (KG) *
+                            </label>
+                            <input
+                                type="number"
+                                step="0.001"
+                                min="0"
+                                value={outputForm.quantity ?? ""}
+                                onChange={(e) =>
+                                    setOutputForm({
+                                        ...outputForm,
+                                        quantity: e.target.value ? Number(e.target.value) : null,
+                                    })
+                                }
+                                placeholder="e.g. 2850.50"
+                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm transition"
+                                required
+                            />
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowOutput(false)}
+                                className="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={saving}
+                                className="w-1/2 py-2.5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 shadow-xs"
+                            >
+                                {saving ? "Saving Output..." : "Confirm Output"}
+                            </button>
+                        </div>
                     </form>
                 </div>
             )}
@@ -872,32 +668,29 @@ export default function ProductionPage() {
 }
 
 // =================================
-// SUMMARY CARD
+// SUMMARY CARD COMPONENT
 // =================================
-
 function SummaryCard({
     title,
     value,
+    subtitle,
     icon,
 }: {
     title: string;
     value: string | number;
+    subtitle?: string;
     icon: React.ReactNode;
 }) {
     return (
-        <div className="bg-white border rounded-2xl p-5">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition">
             <div className="flex items-center justify-between">
                 <div>
-                    <p className="text-sm text-slate-500">
-                        {title}
-                    </p>
-
-                    <p className="text-2xl font-bold mt-1">
-                        {value}
-                    </p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
+                    {subtitle && <p className="text-[11px] text-slate-400 mt-0.5">{subtitle}</p>}
                 </div>
 
-                <div className="w-11 h-11 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center">
+                <div className="w-11 h-11 rounded-xl bg-orange-50 border border-orange-100 text-orange-500 flex items-center justify-center">
                     {icon}
                 </div>
             </div>
@@ -906,18 +699,13 @@ function SummaryCard({
 }
 
 // =================================
-// DATE
+// DATE FORMATTER HELPER
 // =================================
-
 function formatDate(date: string) {
     if (!date) return "-";
-
-    return new Date(date).toLocaleDateString(
-        "en-IN",
-        {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-        }
-    );
+    return new Date(date).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    });
 }

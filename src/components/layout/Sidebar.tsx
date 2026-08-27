@@ -39,6 +39,21 @@ const menuItems: MenuItem[] = [
         href: "/dashboard",
         icon: LayoutDashboard,
     },
+ {
+        name: "Grades",
+        href: "/dashboard/grades",
+        icon: LayoutDashboard,
+    },
+    {
+        name: "Heats",
+        href: "/dashboard/heats",
+        icon: LayoutDashboard,
+    },
+ {
+        name: "Billets",
+        href: "/dashboard/billet",
+        icon: LayoutDashboard,
+    },
 
     {
         name: "Products",
