@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://chandan-steel-backend-4.onrender.com/api';
+import { api } from '@/lib/api';
 
 interface HeatOption {
   id: number;
@@ -12,7 +10,7 @@ interface HeatOption {
   grade_id: number;
   grade_code: string;
   grade_name: string;
-  total_output_qty?: number;
+  total_output_qty?: number | string;
 }
 
 interface GradeOption {
@@ -25,6 +23,8 @@ interface BilletItem {
   id: number;
   billet_no: string;
   quantity: string | number;
+  consumed_quantity?: number;
+  remaining_quantity?: number;
   unit: string;
   production_date: string;
   status: string;
@@ -50,29 +50,28 @@ export default function BilletsPage() {
     production_date: new Date().toISOString().split('T')[0]
   });
 
-  // Token helper
-  const getAuthHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    return {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    };
-  };
-
   // Initial Fetch: Billets, Heats & Grades
   const loadData = async () => {
     setLoading(true);
     try {
-      const headers = getAuthHeaders();
       const [billetsRes, heatsRes, gradesRes] = await Promise.all([
-        fetch(`${API_BASE}/billets`, { headers }).then((res) => res.json()),
-        fetch(`${API_BASE}/heats`, { headers }).then((res) => res.json()),
-        fetch(`${API_BASE}/grades`, { headers }).then((res) => res.json())
+        api.getBillets().catch((err) => {
+          console.warn('Billets load warning:', err);
+          return { success: false, data: [] };
+        }),
+        api.getHeats().catch((err) => {
+          console.warn('Heats load warning:', err);
+          return { success: false, data: [] };
+        }),
+        api.getGrades().catch((err) => {
+          console.warn('Grades load warning:', err);
+          return { success: false, data: [] };
+        })
       ]);
 
-      if (billetsRes.success) setBillets(billetsRes.data);
-      if (heatsRes.success) setHeats(heatsRes.data);
-      if (gradesRes.success) setGrades(gradesRes.data);
+      if (billetsRes?.data) setBillets(billetsRes.data as any);
+      if (heatsRes?.data) setHeats(heatsRes.data as any);
+      if (gradesRes?.data) setGrades(gradesRes.data as any);
     } catch (err) {
       console.error('Data loading error:', err);
     } finally {
@@ -107,19 +106,13 @@ export default function BilletsPage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE}/billets`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          billet_no: form.billet_no.trim(),
-          heat_id: Number(form.heat_id),
-          grade_id: Number(form.grade_id),
-          quantity: parseFloat(form.quantity),
-          production_date: form.production_date
-        })
+      const result = await api.createBillet({
+        billet_no: form.billet_no.trim(),
+        heat_id: Number(form.heat_id),
+        grade_id: Number(form.grade_id),
+        quantity: parseFloat(form.quantity),
+        production_date: form.production_date
       });
-
-      const result = await res.json();
 
       if (result.success) {
         // Reset form
@@ -132,13 +125,13 @@ export default function BilletsPage() {
         });
         setSelectedHeat(null);
         // Refresh Table
-        loadData();
+        await loadData();
       } else {
-        alert(result.message || 'Billet create karne me problem aayi');
+        alert(result.message || 'Error recording billet');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to submit billet:', error);
-      alert('Server error. Please try again.');
+      alert(error.message || 'Network error recording billet');
     } finally {
       setIsSubmitting(false);
     }

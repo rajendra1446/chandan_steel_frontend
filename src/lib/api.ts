@@ -381,6 +381,22 @@ export const api = {
             }>;
         }>("/billets"),
 
+    createBillet: (data: {
+        billet_no: string;
+        heat_id: number;
+        grade_id: number;
+        quantity: number;
+        production_date: string;
+    }) =>
+        request<{
+            success: boolean;
+            message?: string;
+            data: any;
+        }>("/billets", {
+            method: "POST",
+            body: JSON.stringify(data),
+        }),
+
     // ====================================
     // PRODUCTION
     // ====================================
