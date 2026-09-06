@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 import {
     usePathname,
@@ -135,9 +136,10 @@ export default function Sidebar({
 
                     <div className="flex items-center gap-3">
 
-                        <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center">
 
-                            <Factory size={22} />
+                            <Image src="/chandan_logo.jpg"  className="text-white rounded" alt="Logo" width={100} height={100} />
+                                                
 
                         </div>
 

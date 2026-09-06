@@ -63,62 +63,56 @@ export default function TransfersPage() {
         });
 
 
+    const [billets, setBillets] =
+        useState<Array<{ id: number; billet_no: string; quantity: number | string; remaining_quantity?: number; heat_no: string; grade_code: string }>>([]);
+
     // =========================
     // GET TRANSFERS
     // =========================
 
     const loadTransfers = async () => {
-
         try {
-
             setLoading(true);
             setError("");
-
-            const response =
-                await api.getTransfers();
-
+            const response = await api.getTransfers();
             setTransfers(response.data);
-
         } catch (error) {
-
             setError(
                 error instanceof Error
                     ? error.message
                     : "Unable to load transfers"
             );
-
         } finally {
-
             setLoading(false);
         }
     };
 
-
     // =========================
-    // GET UNITS
+    // GET UNITS & BILLETS
     // =========================
 
     const loadUnits = async () => {
-
         try {
-
-            const response =
-                await api.getUnits();
-
+            const response = await api.getUnits();
             setUnits(response.data);
-
         } catch (error) {
-
             console.error(error);
         }
     };
 
+    const loadBillets = async () => {
+        try {
+            const response = await api.getBillets();
+            setBillets(response.data);
+        } catch (error) {
+            console.error(error);
+        }
+    };
 
     useEffect(() => {
-
         loadTransfers();
         loadUnits();
-
+        loadBillets();
     }, []);
 
 
@@ -325,35 +319,31 @@ export default function TransfersPage() {
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
 
                         {/* BILLET */}
-
                         <div>
-
                             <label className="block text-sm font-medium mb-2">
-                                Billet ID
+                                Select Billet *
                             </label>
-
-                            <input
-                                type="number"
-                                value={
-                                    form.billet_id ??
-                                    ""
-                                }
-                                onChange={(e) =>
+                            <select
+                                value={form.billet_id ?? ""}
+                                onChange={(e) => {
+                                    const bId = e.target.value ? Number(e.target.value) : null;
+                                    const chosen = billets.find((b) => b.id === bId);
                                     setForm({
                                         ...form,
-                                        billet_id:
-                                            e.target.value
-                                                ? Number(
-                                                      e.target.value
-                                                  )
-                                                : null,
-                                    })
-                                }
-                                placeholder="Example: 1"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500"
+                                        billet_id: bId,
+                                        quantity: chosen ? Number(chosen.remaining_quantity ?? chosen.quantity) : form.quantity,
+                                    });
+                                }}
+                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500"
                                 required
-                            />
-
+                            >
+                                <option value="">-- Choose Billet --</option>
+                                {billets.map((b) => (
+                                    <option key={b.id} value={b.id}>
+                                        {b.billet_no} (Heat: {b.heat_no} | {b.grade_code}) - {Number(b.remaining_quantity ?? b.quantity).toLocaleString()} KG
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
 

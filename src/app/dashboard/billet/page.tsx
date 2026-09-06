@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://chandan-steel-backend-4.onrender.com/api';
 
@@ -308,12 +310,23 @@ export default function BilletsPage() {
                 billets.map((b) => (
                   <tr key={b.id} className="hover:bg-blue-50/30 transition-colors">
                     <td className="p-3.5 font-semibold text-gray-900">
-                      {b.billet_no}
+                      <Link
+                        href={`/dashboard/traceability?billet=${encodeURIComponent(b.billet_no)}`}
+                        className="hover:text-orange-600 hover:underline"
+                        title="Click to view billet traceability"
+                      >
+                        {b.billet_no}
+                      </Link>
                     </td>
                     <td className="p-3.5">
-                      <span className="font-medium text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded text-xs">
-                        {b.heat_no}
-                      </span>
+                      <Link
+                        href={`/dashboard/traceability?heat=${encodeURIComponent(b.heat_no)}`}
+                        title="Click to view all billet traceability for this heat"
+                        className="inline-flex items-center gap-1 font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2 py-0.5 rounded text-xs transition"
+                      >
+                        <span>{b.heat_no}</span>
+                        <span className="text-[10px] text-orange-600">→</span>
+                      </Link>
                     </td>
                     <td className="p-3.5 text-gray-700">
                       <div className="font-medium text-gray-900">{b.grade_code}</div>

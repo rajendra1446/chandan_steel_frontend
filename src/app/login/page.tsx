@@ -15,6 +15,7 @@ import {
 
 import { api } from "../../lib/api";
 import { saveAuth } from "../../lib/auth";
+import Image from "next/image";
 
 export default function LoginPage() {
 
@@ -79,12 +80,10 @@ export default function LoginPage() {
 
                 <div className="text-center mb-8">
 
-                    <div className="inline-flex w-16 h-16 items-center justify-center rounded-2xl bg-orange-500">
+                    <div className="inline-flex  items-center justify-center rounded-2xl">
 
-                        <Factory
-                            size={32}
-                            className="text-white"
-                        />
+                        <Image src="/chandan_logo.jpg"  className="text-white rounded" alt="Logo" width={100} height={100} />
+                          
 
                     </div>
 

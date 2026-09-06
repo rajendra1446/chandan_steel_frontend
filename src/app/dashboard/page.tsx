@@ -8,6 +8,8 @@ import {
     ArrowRightLeft,
     Search,
     ArrowUpRight,
+    Flame,
+    Layers,
 } from "lucide-react";
 
 interface Card {
@@ -18,39 +20,44 @@ interface Card {
 }
 
 const cards: Card[] = [
-
     {
-        title: "Products",
-        description:
-            "Manage steel products",
-        icon: Package,
-        href: "/dashboard/products",
+        title: "SMS Heats",
+        description: "Furnace melt logging & charge materials",
+        icon: Flame,
+        href: "/dashboard/heats",
     },
-
     {
-        title: "Production",
-        description:
-            "Manage production batches",
-        icon: Factory,
-        href: "/dashboard/production",
+        title: "Billet Casting",
+        description: "Cast billet registration & tracking",
+        icon: Layers,
+        href: "/dashboard/billet",
     },
-
     {
-        title: "Transfers",
-        description:
-            "Track material movement",
+        title: "Unit Transfers",
+        description: "Track material movement between mills",
         icon: ArrowRightLeft,
         href: "/dashboard/transfers",
     },
-
+    {
+        title: "Rolling Mill",
+        description: "Production batches & rolling mill runs",
+        icon: Factory,
+        href: "/dashboard/production",
+    },
+    {
+        title: "Finished Products",
+        description: "Prime steel products & yield output",
+        icon: Package,
+        href: "/dashboard/products",
+    },
     {
         title: "Traceability",
-        description:
-            "Trace billet to final product",
+        description: "End-to-end heat to product audit trail",
         icon: Search,
         href: "/dashboard/traceability",
     },
 ];
+
 
 export default function DashboardPage() {
 
@@ -73,8 +80,8 @@ export default function DashboardPage() {
             </div>
 
             {/* CARDS */}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
 
-            <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-5">
 
                 {cards.map((card) => {
 

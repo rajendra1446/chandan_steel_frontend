@@ -7,6 +7,7 @@ import type { Product, CreateProductRequest } from "../../../types/product";
 
 export default function ProductsPage() {
     const [products, setProducts] = useState<Product[]>([]);
+    const [units, setUnits] = useState<Array<{ id: number; unit_code: string; unit_name: string }>>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showForm, setShowForm] = useState(false);
@@ -23,8 +24,12 @@ export default function ProductsPage() {
         try {
             setLoading(true);
             setError("");
-            const response = await api.getProducts();
-            setProducts(response.data);
+            const [prodRes, unitsRes] = await Promise.all([
+                api.getProducts(),
+                api.getUnits().catch(() => ({ data: [] }))
+            ]);
+            setProducts(prodRes.data);
+            if (unitsRes?.data) setUnits(unitsRes.data);
         } catch (error) {
             setError(
                 error instanceof Error
@@ -177,22 +182,25 @@ export default function ProductsPage() {
 
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                                Unit ID
+                                Manufacturing Unit
                             </label>
-                            <input
-                                type="number"
+                            <select
                                 value={form.unit_id ?? ""}
                                 onChange={(e) =>
                                     setForm({
                                         ...form,
-                                        unit_id: e.target.value
-                                            ? Number(e.target.value)
-                                            : null,
+                                        unit_id: e.target.value ? Number(e.target.value) : null,
                                     })
                                 }
-                                placeholder="e.g. 1"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm transition"
-                            />
+                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500 text-sm transition"
+                            >
+                                <option value="">-- Select Mill / Unit --</option>
+                                {units.map((u) => (
+                                    <option key={u.id} value={u.id}>
+                                        {u.unit_code} - {u.unit_name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
