@@ -91,12 +91,43 @@ export interface Production {
     product_quantity: string | number | null;
 }
 
+export interface Rejection {
+    id: number;
+    rejection_quantity: string | number;
+    rejection_category: string;
+    rejection_reason: string;
+    defect_location?: string | null;
+    disposition: string;
+    inspector_id?: string | null;
+    inspected_at?: string;
+    batch_no?: string;
+    product_code?: string | null;
+    product_name?: string | null;
+}
+
+export interface AuditAnswers {
+    grade_produced: { code: string; name: string };
+    heat_number: { heat_no: string; heat_date: string; melt_shop: string; total_input_qty: number; total_output_qty: number };
+    raw_materials_used: Array<{ code: string; name: string; type: string; quantity: number; unit: string }>;
+    billet_produced_qty: { cast_weight: number; current_remaining: number; unit: string; production_date: string };
+    manufacturing_units_received: string[];
+    transferred_qty_by_unit: Array<{ from_unit: string; to_unit: string; quantity: number; transfer_date: string; manifest_no?: string; vehicle_no?: string }>;
+    products_manufactured: string[];
+    finished_product_qty: { total_weight: number; unit: string; lots: Array<any> };
+    material_rejected_qty: { total_rejected_weight: number; rejection_count: number; unit: string };
+    rejection_reasons: Array<{ category: string; reason: string; defect_location?: string; quantity: number; disposition: string; batch_no?: string; inspector?: string; date?: string }>;
+    scrap_and_waste_qty: { total_scrap_weight: number; reheating_scale_loss: number; crop_end_cut_scrap: number; recycled_to_sms_scrap: number; heat_melt_loss_share: number; unit: string };
+    final_destination: { status: string; remaining_stock_in_yard: number; finished_products_destination: string[]; disposition_summary: string };
+}
+
 export interface TraceabilityData {
     billet: Billet;
     metrics?: BilletMetrics;
     source: Source;
     transfers: Transfer[];
     production: Production[];
+    rejections?: Rejection[];
+    audit_answers?: AuditAnswers;
 }
 
 export interface TraceabilityResponse {
@@ -140,10 +171,12 @@ export interface HeatTraceabilityData {
     billets: DetailedBillet[];
     transfers: Transfer[];
     production: Production[];
+    rejections?: Rejection[];
 }
 
 export interface HeatTraceabilityResponse {
     success: boolean;
     data: HeatTraceabilityData;
 }
+
 

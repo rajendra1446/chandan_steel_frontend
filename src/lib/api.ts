@@ -530,7 +530,34 @@ export const api = {
             throw err;
         }
     },
+
+    // ====================================
+    // AI METALLURGICAL COPILOT
+    // ====================================
+
+    askAi: (data: {
+        query: string;
+        billet_no?: string;
+        heat_no?: string;
+        grade_code?: string;
+    }) =>
+        request<{
+            success: boolean;
+            type: string;
+            answer: string;
+            data: any;
+        }>("/ai/query", {
+            method: "POST",
+            body: JSON.stringify(data),
+        }),
+
+    getAiInsights: () =>
+        request<{
+            success: boolean;
+            data: any;
+        }>("/ai/insights"),
 };
+
 
 // ========================================
 // RESILIENT HEAT TRACEABILITY FALLBACK

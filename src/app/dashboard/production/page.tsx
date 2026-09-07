@@ -3,8 +3,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import {
-    Activity,
-    CheckCircle2,
     Factory,
     Package,
     Plus,
@@ -12,11 +10,11 @@ import {
     X,
     ArrowRight,
     Scale,
-    Calendar,
     Layers,
     TrendingUp,
 } from "lucide-react";
-
+import PageHeader from "@/components/layout/PageHeader";
+import StatCard from "@/components/layout/StatCard";
 import { api } from "../../../lib/api";
 
 export interface ProductionBatch {
@@ -81,15 +79,12 @@ export default function ProductionPage() {
     const [units, setUnits] = useState<Unit[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [billets, setBillets] = useState<BilletOption[]>([]);
-
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-
     const [showCreate, setShowCreate] = useState(false);
     const [showOutput, setShowOutput] = useState(false);
-
     const [selectedBatch, setSelectedBatch] = useState<ProductionBatch | null>(null);
-    const [error, setError] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
 
     const [productionForm, setProductionForm] = useState<ProductionForm>({
         batch_no: "",
@@ -105,57 +100,31 @@ export default function ProductionPage() {
         quantity: null,
     });
 
-    // =========================
-    // LOAD DATA
-    // =========================
-    const loadProduction = async () => {
+    const loadData = async () => {
         try {
             setLoading(true);
-            setError("");
-            const response = await api.getProduction();
-            setBatches(response.data);
+            const [prodRes, unitsRes, prodCatalogRes, billetsRes] = await Promise.all([
+                api.getProduction().catch(() => ({ data: [] })),
+                api.getUnits().catch(() => ({ data: [] })),
+                api.getProducts().catch(() => ({ data: [] })),
+                api.getBillets().catch(() => ({ data: [] })),
+            ]);
+
+            setBatches(prodRes.data || []);
+            setUnits(unitsRes.data || []);
+            setProducts(prodCatalogRes.data || []);
+            setBillets(billetsRes.data || []);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Unable to load production records");
+            console.error("Failed to load production data:", err);
         } finally {
             setLoading(false);
         }
     };
 
-    const loadUnits = async () => {
-        try {
-            const response = await api.getUnits();
-            setUnits(response.data);
-        } catch (err) {
-            console.error("Failed to load units:", err);
-        }
-    };
-
-    const loadProducts = async () => {
-        try {
-            const response = await api.getProducts();
-            setProducts(response.data);
-        } catch (err) {
-            console.error("Failed to load products:", err);
-        }
-    };
-
-    const loadBillets = async () => {
-        try {
-            const response = await api.getBillets();
-            setBillets(response.data);
-        } catch (err) {
-            console.error("Failed to load billets:", err);
-        }
-    };
-
     useEffect(() => {
-        loadProduction();
-        loadUnits();
-        loadProducts();
-        loadBillets();
+        loadData();
     }, []);
 
-    // Handle Billet selection in Create form
     const handleBilletSelect = (billetIdStr: string) => {
         const id = billetIdStr ? Number(billetIdStr) : null;
         const selected = billets.find((b) => b.id === id);
@@ -167,14 +136,10 @@ export default function ProductionPage() {
         }));
     };
 
-    // =========================
-    // CREATE PRODUCTION BATCH
-    // =========================
     const handleCreateProduction = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-
         if (!productionForm.batch_no || !productionForm.unit_id) {
-            alert("Batch number and unit are required.");
+            alert("Batch number and mill unit are required.");
             return;
         }
 
@@ -199,7 +164,7 @@ export default function ProductionPage() {
             });
 
             setShowCreate(false);
-            await Promise.all([loadProduction(), loadBillets()]);
+            await loadData();
         } catch (err) {
             alert(err instanceof Error ? err.message : "Production batch creation failed");
         } finally {
@@ -207,12 +172,8 @@ export default function ProductionPage() {
         }
     };
 
-    // =========================
-    // ADD PRODUCT OUTPUT
-    // =========================
     const handleAddOutput = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-
         if (!selectedBatch || !outputForm.product_id || !outputForm.quantity) {
             alert("Product and quantity fields are required.");
             return;
@@ -225,13 +186,9 @@ export default function ProductionPage() {
                 quantity: outputForm.quantity,
             });
 
-            setOutputForm({
-                product_id: null,
-                quantity: null,
-            });
-
+            setOutputForm({ product_id: null, quantity: null });
             setShowOutput(false);
-            await loadProduction();
+            await loadData();
         } catch (err) {
             alert(err instanceof Error ? err.message : "Unable to add production output");
         } finally {
@@ -239,7 +196,7 @@ export default function ProductionPage() {
         }
     };
 
-    // Derived Statistics
+    // Metrics
     const totalBilletConsumed = batches.reduce(
         (sum, b) => sum + Number(b.billet_consumed || b.input_quantity || 0),
         0
@@ -254,109 +211,98 @@ export default function ProductionPage() {
 
     const selectedBilletObj = billets.find((b) => b.id === productionForm.billet_id);
 
+    const filteredBatches = batches.filter((b) =>
+        b.batch_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (b.product_name && b.product_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (b.billet_no && b.billet_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (b.unit_code && b.unit_code.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
     return (
-        <div className="p-6 space-y-6 mx-auto">
-            {/* ================================= */}
-            {/* HEADER */}
-            {/* ================================= */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center">
-                        <Factory className="text-orange-500" size={24} />
+        <div className="space-y-6">
+            {/* PAGE HEADER */}
+            <PageHeader
+                title="Rolling Mill Production & Outputs"
+                subtitle="Track cast billet consumption, rolling campaigns, and finished rebar/wire rod outputs"
+                badge="Rolling Mill MES"
+                icon={Factory}
+                onOpenAi={() => {}}
+                aiPromptHint="what product built production like ui"
+                actions={
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={loadData}
+                            className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                        >
+                            <RefreshCw size={15} className={loading ? "animate-spin text-orange-500" : ""} />
+                            <span>Refresh</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowCreate(!showCreate)}
+                            className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                        >
+                            {showCreate ? <X size={16} /> : <Plus size={16} />}
+                            <span>{showCreate ? "Close Form" : "New Rolling Batch"}</span>
+                        </button>
                     </div>
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                            Rolling Mill & Production
-                        </h1>
-                        <p className="text-sm text-slate-500 mt-0.5">
-                            Track billet consumption, rolling batches, and finished product outputs
-                        </p>
-                    </div>
-                </div>
+                }
+            />
 
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={loadProduction}
-                        className="bg-white border border-slate-300 hover:bg-slate-50 active:bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition"
-                    >
-                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-                        Refresh
-                    </button>
-
-                    <button
-                        onClick={() => setShowCreate(!showCreate)}
-                        className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm font-semibold transition"
-                    >
-                        {showCreate ? <X size={18} /> : <Plus size={18} />}
-                        {showCreate ? "Close" : "New Production Batch"}
-                    </button>
-                </div>
-            </div>
-
-            {/* ================================= */}
-            {/* ERROR BANNER */}
-            {/* ================================= */}
-            {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-between">
-                    <span>{error}</span>
-                    <button onClick={() => setError("")} className="text-red-400 hover:text-red-600">✕</button>
-                </div>
-            )}
-
-            {/* ================================= */}
-            {/* SUMMARY CARDS */}
-            {/* ================================= */}
+            {/* KPI METRIC STRIP */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <SummaryCard
+                <StatCard
                     title="Total Batches"
-                    value={batches.length}
-                    subtitle="Logged Rolling Runs"
-                    icon={<Layers size={22} />}
+                    value={loading ? "..." : batches.length}
+                    subtitle="Logged hot rolling runs"
+                    icon={<Layers size={20} />}
+                    iconBg="bg-orange-50"
+                    iconColor="text-orange-500"
                 />
-                <SummaryCard
+                <StatCard
                     title="Billet Consumed"
-                    value={`${totalBilletConsumed.toLocaleString("en-IN", { maximumFractionDigits: 2 })} KG`}
-                    subtitle="Total Raw Input Fed"
-                    icon={<Package size={22} />}
+                    value={`${totalBilletConsumed.toLocaleString()} KG`}
+                    subtitle="Total raw input fed to mill"
+                    icon={<Package size={20} />}
+                    iconBg="bg-blue-50"
+                    iconColor="text-blue-600"
                 />
-                <SummaryCard
+                <StatCard
                     title="Finished Output"
-                    value={`${totalFinishedOutput.toLocaleString("en-IN", { maximumFractionDigits: 2 })} KG`}
-                    subtitle="Total Prime Yield"
-                    icon={<Scale size={22} />}
+                    value={`${totalFinishedOutput.toLocaleString()} KG`}
+                    subtitle="Total prime finished yield"
+                    icon={<Scale size={20} />}
+                    iconBg="bg-emerald-50"
+                    iconColor="text-emerald-600"
                 />
-                <SummaryCard
-                    title="Rolling Yield"
+                <StatCard
+                    title="Rolling Yield Rate"
                     value={`${overallYield}%`}
-                    subtitle="Material Conversion Rate"
-                    icon={<TrendingUp size={22} />}
+                    subtitle="Material conversion efficiency"
+                    icon={<TrendingUp size={20} />}
+                    iconBg="bg-purple-50"
+                    iconColor="text-purple-600"
                 />
             </div>
 
-            {/* ================================= */}
-            {/* CREATE PRODUCTION FORM */}
-            {/* ================================= */}
+            {/* CREATE PRODUCTION BATCH FORM */}
             {showCreate && (
                 <form
                     onSubmit={handleCreateProduction}
-                    className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5"
+                    className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm space-y-5 animate-in fade-in duration-150"
                 >
                     <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
                         <div>
-                            <h2 className="text-lg font-bold text-slate-900">
-                                Launch New Production Batch
-                            </h2>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                                Feed transferred cast billet stock into rolling mill lines
-                            </p>
+                            <h2 className="text-lg font-bold text-slate-900">Launch New Production Batch</h2>
+                            <p className="text-xs text-slate-500">Feed transferred billet stock into rolling mill lines</p>
                         </div>
-                        <span className="text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md">
-                            Input Stage
+                        <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-md border border-orange-200">
+                            Mill Feed
                         </span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {/* BATCH NO */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
                                 Batch Number *
@@ -364,44 +310,32 @@ export default function ProductionPage() {
                             <input
                                 type="text"
                                 value={productionForm.batch_no}
-                                onChange={(e) =>
-                                    setProductionForm({
-                                        ...productionForm,
-                                        batch_no: e.target.value,
-                                    })
-                                }
+                                onChange={(e) => setProductionForm({ ...productionForm, batch_no: e.target.value })}
                                 placeholder="e.g. WRM260825002"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 text-sm transition"
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500 font-medium"
                                 required
                             />
                         </div>
 
-                        {/* UNIT */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
-                                Production Mill / Unit *
+                                Production Mill Line *
                             </label>
                             <select
                                 value={productionForm.unit_id ?? ""}
-                                onChange={(e) =>
-                                    setProductionForm({
-                                        ...productionForm,
-                                        unit_id: e.target.value ? Number(e.target.value) : null,
-                                    })
-                                }
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500 text-sm transition"
+                                onChange={(e) => setProductionForm({ ...productionForm, unit_id: e.target.value ? Number(e.target.value) : null })}
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 bg-white text-xs outline-none focus:border-orange-500 font-medium"
                                 required
                             >
                                 <option value="">-- Choose Mill Line --</option>
-                                {units.map((unit) => (
-                                    <option key={unit.id} value={unit.id}>
-                                        {unit.unit_code} - {unit.unit_name}
+                                {units.map((u) => (
+                                    <option key={u.id} value={u.id}>
+                                        {u.unit_code} - {u.unit_name}
                                     </option>
                                 ))}
                             </select>
                         </div>
 
-                        {/* PRODUCTION DATE */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
                                 Production Date *
@@ -409,18 +343,12 @@ export default function ProductionPage() {
                             <input
                                 type="date"
                                 value={productionForm.production_date}
-                                onChange={(e) =>
-                                    setProductionForm({
-                                        ...productionForm,
-                                        production_date: e.target.value,
-                                    })
-                                }
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 text-sm transition"
+                                onChange={(e) => setProductionForm({ ...productionForm, production_date: e.target.value })}
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500 font-medium"
                                 required
                             />
                         </div>
 
-                        {/* SOURCE BILLET DROPDOWN */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
                                 Source Billet *
@@ -428,7 +356,7 @@ export default function ProductionPage() {
                             <select
                                 value={productionForm.billet_id ?? ""}
                                 onChange={(e) => handleBilletSelect(e.target.value)}
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500 text-sm transition"
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 bg-white text-xs outline-none focus:border-orange-500 font-medium"
                                 required
                             >
                                 <option value="">-- Select Source Billet --</option>
@@ -440,12 +368,11 @@ export default function ProductionPage() {
                             </select>
                             {selectedBilletObj && (
                                 <p className="text-[11px] text-slate-500 mt-1">
-                                    Heat: <span className="font-semibold text-orange-600">{selectedBilletObj.heat_no}</span> • Grade: {selectedBilletObj.grade_code} • Balance: {Number(selectedBilletObj.remaining_quantity ?? selectedBilletObj.quantity).toLocaleString()} KG
+                                    Heat: <strong className="text-orange-600">{selectedBilletObj.heat_no}</strong> • Grade: {selectedBilletObj.grade_code}
                                 </p>
                             )}
                         </div>
 
-                        {/* BILLET CONSUMED WEIGHT */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
                                 Consumed Weight (KG) *
@@ -455,34 +382,23 @@ export default function ProductionPage() {
                                 step="0.001"
                                 min="0.001"
                                 value={productionForm.billet_consumed ?? ""}
-                                onChange={(e) =>
-                                    setProductionForm({
-                                        ...productionForm,
-                                        billet_consumed: e.target.value ? Number(e.target.value) : null,
-                                    })
-                                }
+                                onChange={(e) => setProductionForm({ ...productionForm, billet_consumed: e.target.value ? Number(e.target.value) : null })}
                                 placeholder="e.g. 3000.00"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 text-sm transition"
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500 font-medium"
                                 required
                             />
                         </div>
 
-                        {/* REMARKS */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
-                                Remarks / Notes
+                                Remarks / Run Notes
                             </label>
                             <input
                                 type="text"
                                 value={productionForm.remarks}
-                                onChange={(e) =>
-                                    setProductionForm({
-                                        ...productionForm,
-                                        remarks: e.target.value,
-                                    })
-                                }
-                                placeholder="e.g. Rolling pass 1, 12mm rebar run"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 text-sm transition"
+                                onChange={(e) => setProductionForm({ ...productionForm, remarks: e.target.value })}
+                                placeholder="e.g. 12mm rebar rolling campaign"
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500 font-medium"
                             />
                         </div>
                     </div>
@@ -491,7 +407,7 @@ export default function ProductionPage() {
                         <button
                             type="submit"
                             disabled={saving}
-                            className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-7 py-2.5 rounded-lg text-sm font-semibold transition disabled:opacity-50"
+                            className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-7 py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
                         >
                             {saving ? "Creating Batch..." : "Create Production Batch"}
                         </button>
@@ -499,55 +415,49 @@ export default function ProductionPage() {
                 </form>
             )}
 
-            {/* ================================= */}
-            {/* PRODUCTION TABLE */}
-            {/* ================================= */}
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                <div className="p-5 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            {/* TABLE CONTAINER */}
+            <div className="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden">
+                <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <h2 className="font-bold text-slate-900">Production Batches History</h2>
-                        <p className="text-xs text-slate-500">
-                            Raw billet consumption linked directly to finished rolled outputs
-                        </p>
+                        <h3 className="font-extrabold text-sm text-slate-900">Production Batches History</h3>
+                        <p className="text-xs text-slate-500">Raw billet consumption linked directly to finished rolled outputs</p>
                     </div>
-                    <span className="bg-orange-50 border border-orange-200 text-orange-600 px-3 py-1 rounded-md text-xs font-semibold w-fit">
-                        {batches.length} Batches
-                    </span>
+
+                    <div className="w-full sm:w-64">
+                        <input
+                            type="text"
+                            placeholder="Search batches, billets, products..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-1.5 text-xs outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-100 transition"
+                        />
+                    </div>
                 </div>
 
-                {loading ? (
-                    <div className="p-16 text-center text-slate-500 text-sm flex flex-col items-center justify-center gap-3">
-                        <RefreshCw size={24} className="animate-spin text-orange-500" />
-                        <span>Loading production records...</span>
-                    </div>
-                ) : batches.length === 0 ? (
-                    <div className="p-16 text-center">
-                        <div className="w-16 h-16 bg-orange-50 text-orange-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                            <Factory size={32} />
-                        </div>
-                        <h3 className="font-bold text-slate-800 text-base">No production batches found</h3>
-                        <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                            Click &quot;New Production Batch&quot; to feed billets into rolling and start a production run.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse text-sm">
-                            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase tracking-wider font-semibold">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold tracking-wider">
+                            <tr>
+                                <th className="p-3.5 pl-6">Batch No</th>
+                                <th className="p-3.5">Mill Line</th>
+                                <th className="p-3.5">Date</th>
+                                <th className="p-3.5">Source Billet</th>
+                                <th className="p-3.5">Billet Consumed</th>
+                                <th className="p-3.5">Finished Product</th>
+                                <th className="p-3.5">Yield Output</th>
+                                <th className="p-3.5">Status</th>
+                                <th className="p-3.5 pr-6 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-xs">
+                            {filteredBatches.length === 0 ? (
                                 <tr>
-                                    <th className="px-6 py-3.5">Batch No</th>
-                                    <th className="px-6 py-3.5">Mill Line</th>
-                                    <th className="px-6 py-3.5">Date</th>
-                                    <th className="px-6 py-3.5">Source Billet</th>
-                                    <th className="px-6 py-3.5">Billet Consumed</th>
-                                    <th className="px-6 py-3.5">Finished Product</th>
-                                    <th className="px-6 py-3.5">Yield Output</th>
-                                    <th className="px-6 py-3.5">Status</th>
-                                    <th className="px-6 py-3.5 text-right">Action</th>
+                                    <td colSpan={9} className="p-8 text-center text-slate-400">
+                                        {loading ? "Loading rolling mill records..." : "No production batches found."}
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {batches.map((batch) => {
+                            ) : (
+                                filteredBatches.map((batch) => {
                                     const inputQty = Number(batch.billet_consumed || batch.input_quantity || 0);
                                     const outputQty = Number(batch.product_quantity || batch.output_quantity || 0);
                                     const yieldPct = inputQty > 0 && outputQty > 0
@@ -555,84 +465,65 @@ export default function ProductionPage() {
                                         : null;
 
                                     return (
-                                        <tr key={batch.id} className="hover:bg-slate-50/70 transition">
-                                            {/* BATCH NO */}
-                                            <td className="px-6 py-4 font-bold text-slate-900">
+                                        <tr key={batch.id} className="hover:bg-orange-50/30 transition-colors">
+                                            <td className="p-3.5 pl-6 font-extrabold text-slate-900">
                                                 {batch.batch_no}
                                             </td>
-
-                                            {/* UNIT */}
-                                            <td className="px-6 py-4">
-                                                <span className="font-semibold text-slate-800">{batch.unit_code}</span>
-                                                <p className="text-xs text-slate-400">{batch.unit_name}</p>
+                                            <td className="p-3.5">
+                                                <span className="font-bold text-slate-800">{batch.unit_code}</span>
+                                                <p className="text-[11px] text-slate-400">{batch.unit_name}</p>
                                             </td>
-
-                                            {/* DATE */}
-                                            <td className="px-6 py-4 text-slate-600 text-xs">
-                                                {formatDate(batch.production_date)}
+                                            <td className="p-3.5 text-slate-600">
+                                                {new Date(batch.production_date).toLocaleDateString()}
                                             </td>
-
-                                            {/* SOURCE BILLET */}
-                                            <td className="px-6 py-4">
+                                            <td className="p-3.5">
                                                 {batch.billet_no ? (
                                                     <Link
                                                         href={`/dashboard/traceability?billet=${encodeURIComponent(batch.billet_no)}`}
-                                                        className="inline-flex items-center gap-1 font-semibold text-orange-600 hover:text-orange-800 hover:underline text-xs bg-orange-50 px-2 py-0.5 rounded border border-orange-200"
+                                                        className="inline-flex items-center gap-1 font-bold text-orange-600 hover:text-orange-800 hover:underline bg-orange-50 px-2 py-0.5 rounded border border-orange-200"
                                                         title="Click to trace billet"
                                                     >
                                                         <span>{batch.billet_no}</span>
                                                         <span>→</span>
                                                     </Link>
                                                 ) : (
-                                                    <span className="text-xs text-slate-400">Direct Mill Feed</span>
+                                                    <span className="text-slate-400">Direct Mill Feed</span>
                                                 )}
                                             </td>
-
-                                            {/* BILLET CONSUMED */}
-                                            <td className="px-6 py-4 font-bold text-slate-900">
-                                                {inputQty.toLocaleString()} <span className="text-xs text-slate-400 font-normal">KG</span>
+                                            <td className="p-3.5 font-bold text-slate-900">
+                                                {inputQty.toLocaleString()} KG
                                             </td>
-
-                                            {/* PRODUCT */}
-                                            <td className="px-6 py-4">
+                                            <td className="p-3.5">
                                                 {batch.product_name ? (
                                                     <div>
-                                                        <p className="font-semibold text-slate-900">
-                                                            {batch.product_name}
-                                                        </p>
-                                                        <p className="text-xs font-mono text-orange-600">
-                                                            {batch.product_code}
-                                                        </p>
+                                                        <p className="font-bold text-slate-900">{batch.product_name}</p>
+                                                        <p className="text-[11px] text-orange-600 font-mono">{batch.product_code}</p>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-xs italic text-slate-400 bg-slate-50 border border-dashed border-slate-200 px-2 py-0.5 rounded">
+                                                    <span className="italic text-slate-400 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
                                                         Pending Output
                                                     </span>
                                                 )}
                                             </td>
-
-                                            {/* OUTPUT */}
-                                            <td className="px-6 py-4">
+                                            <td className="p-3.5">
                                                 {outputQty > 0 ? (
                                                     <div>
-                                                        <span className="font-bold text-emerald-700">
+                                                        <span className="font-extrabold text-emerald-700">
                                                             {outputQty.toLocaleString()} KG
                                                         </span>
                                                         {yieldPct && (
-                                                            <p className="text-[11px] text-emerald-600 font-medium">
+                                                            <p className="text-[10px] text-emerald-600 font-bold">
                                                                 Yield: {yieldPct}%
                                                             </p>
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-slate-400 text-xs">-</span>
+                                                    <span className="text-slate-400">-</span>
                                                 )}
                                             </td>
-
-                                            {/* STATUS */}
-                                            <td className="px-6 py-4">
+                                            <td className="p-3.5">
                                                 <span
-                                                    className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                                    className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                                                         batch.status === "COMPLETED"
                                                             ? "bg-emerald-100 text-emerald-800"
                                                             : "bg-amber-100 text-amber-800"
@@ -641,118 +532,98 @@ export default function ProductionPage() {
                                                     {batch.status}
                                                 </span>
                                             </td>
-
-                                            {/* ACTION */}
-                                            <td className="px-6 py-4 text-right">
+                                            <td className="p-3.5 pr-6 text-right">
                                                 <button
+                                                    type="button"
                                                     onClick={() => {
                                                         setSelectedBatch(batch);
                                                         setShowOutput(true);
                                                     }}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 border border-orange-200 text-orange-600 hover:bg-orange-500 hover:text-white rounded-lg text-xs font-semibold transition"
+                                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-orange-50 border border-orange-200 text-orange-600 hover:bg-orange-500 hover:text-white rounded-lg text-xs font-bold transition cursor-pointer"
                                                 >
-                                                    <Plus size={14} />
+                                                    <Plus size={13} />
                                                     Add Output
                                                 </button>
                                             </td>
                                         </tr>
                                     );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            {/* ================================= */}
             {/* OUTPUT MODAL */}
-            {/* ================================= */}
             {showOutput && selectedBatch && (
                 <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
                     <form
                         onSubmit={handleAddOutput}
                         className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-100 p-6 space-y-5"
                     >
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                             <div>
-                                <h2 className="text-lg font-bold text-slate-900">
-                                    Record Product Output
-                                </h2>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                    Batch Ref: <span className="font-bold text-orange-600 font-mono">{selectedBatch.batch_no}</span>
+                                <h2 className="text-lg font-bold text-slate-900">Record Finished Product Output</h2>
+                                <p className="text-xs text-slate-500">
+                                    Batch Ref: <span className="font-bold text-orange-600">{selectedBatch.batch_no}</span>
                                 </p>
                             </div>
-
                             <button
                                 type="button"
                                 onClick={() => setShowOutput(false)}
-                                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition"
+                                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition cursor-pointer"
                             >
                                 <X size={20} />
                             </button>
                         </div>
 
                         {/* FLOW STEP BANNER */}
-                        <div className="bg-orange-50/60 border border-orange-200/80 rounded-xl p-3">
-                            <div className="flex items-center justify-center gap-3 text-xs font-semibold text-slate-700">
-                                <span className="bg-white px-2 py-1 rounded border border-orange-200">
-                                    Mill: {selectedBatch.unit_code}
-                                </span>
-                                <ArrowRight size={14} className="text-orange-500" />
-                                <span className="bg-white px-2 py-1 rounded border border-orange-200">
-                                    Input: {Number(selectedBatch.billet_consumed || selectedBatch.input_quantity || 0).toLocaleString()} KG
-                                </span>
-                            </div>
+                        <div className="bg-orange-50/60 border border-orange-200 rounded-xl p-3 text-xs font-semibold text-slate-700 flex items-center justify-center gap-3">
+                            <span className="bg-white px-2 py-1 rounded border border-orange-200">
+                                Mill: {selectedBatch.unit_code}
+                            </span>
+                            <ArrowRight size={14} className="text-orange-500" />
+                            <span className="bg-white px-2 py-1 rounded border border-orange-200">
+                                Input: {Number(selectedBatch.billet_consumed || selectedBatch.input_quantity || 0).toLocaleString()} KG
+                            </span>
                         </div>
 
-                        {/* PRODUCT SELECT */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
                                 Select Finished Product *
                             </label>
                             <select
                                 value={outputForm.product_id ?? ""}
-                                onChange={(e) =>
-                                    setOutputForm({
-                                        ...outputForm,
-                                        product_id: e.target.value ? Number(e.target.value) : null,
-                                    })
-                                }
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500 text-sm transition"
+                                onChange={(e) => setOutputForm({ ...outputForm, product_id: e.target.value ? Number(e.target.value) : null })}
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 bg-white text-sm outline-none focus:border-orange-500 font-medium"
                                 required
                             >
                                 <option value="">-- Choose Product --</option>
-                                {products.map((product) => (
-                                    <option key={product.id} value={product.id}>
-                                        {product.product_code} - {product.product_name}
+                                {products.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.product_code} - {p.product_name}
                                     </option>
                                 ))}
                             </select>
                         </div>
 
-                        {/* QUANTITY */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
-                                Finished Yield Weight (KG) *
+                                Finished Output Weight (KG) *
                             </label>
                             <input
                                 type="number"
                                 step="0.001"
                                 min="0.001"
                                 value={outputForm.quantity ?? ""}
-                                onChange={(e) =>
-                                    setOutputForm({
-                                        ...outputForm,
-                                        quantity: e.target.value ? Number(e.target.value) : null,
-                                    })
-                                }
+                                onChange={(e) => setOutputForm({ ...outputForm, quantity: e.target.value ? Number(e.target.value) : null })}
                                 placeholder="e.g. 2850.50"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 text-sm transition"
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-orange-500 font-medium"
                                 required
                             />
                             {outputForm.quantity && selectedBatch && (
-                                <p className="text-xs text-emerald-700 mt-1.5 font-medium">
-                                    Yield: {(((Number(outputForm.quantity) / (Number(selectedBatch.billet_consumed || selectedBatch.input_quantity || 1))) * 100).toFixed(1))}% • Scrap Loss: {Math.max(0, Number(selectedBatch.billet_consumed || selectedBatch.input_quantity || 0) - Number(outputForm.quantity)).toFixed(1)} KG
+                                <p className="text-xs text-emerald-700 mt-1.5 font-bold">
+                                    Yield: {(((Number(outputForm.quantity) / (Number(selectedBatch.billet_consumed || selectedBatch.input_quantity || 1))) * 100).toFixed(1))}% • Scale Loss: {Math.max(0, Number(selectedBatch.billet_consumed || selectedBatch.input_quantity || 0) - Number(outputForm.quantity)).toFixed(1)} KG
                                 </p>
                             )}
                         </div>
@@ -761,14 +632,14 @@ export default function ProductionPage() {
                             <button
                                 type="button"
                                 onClick={() => setShowOutput(false)}
-                                className="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition"
+                                className="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={saving}
-                                className="w-1/2 py-2.5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50"
+                                className="w-1/2 py-2.5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer shadow-sm"
                             >
                                 {saving ? "Saving Output..." : "Confirm Output"}
                             </button>
@@ -778,47 +649,4 @@ export default function ProductionPage() {
             )}
         </div>
     );
-}
-
-// =================================
-// SUMMARY CARD COMPONENT
-// =================================
-function SummaryCard({
-    title,
-    value,
-    subtitle,
-    icon,
-}: {
-    title: string;
-    value: string | number;
-    subtitle?: string;
-    icon: React.ReactNode;
-}) {
-    return (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition">
-            <div className="flex items-center justify-between">
-                <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
-                    {subtitle && <p className="text-[11px] text-slate-400 mt-0.5">{subtitle}</p>}
-                </div>
-
-                <div className="w-11 h-11 rounded-xl bg-orange-50 border border-orange-100 text-orange-500 flex items-center justify-center">
-                    {icon}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// =================================
-// DATE FORMATTER HELPER
-// =================================
-function formatDate(date: string) {
-    if (!date) return "-";
-    return new Date(date).toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    });
 }

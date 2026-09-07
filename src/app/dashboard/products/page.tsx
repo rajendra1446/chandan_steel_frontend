@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Plus, RefreshCw, Package, X } from "lucide-react";
+import { Plus, RefreshCw, Package, X, Layers, Factory, Sparkles } from "lucide-react";
+import PageHeader from "@/components/layout/PageHeader";
+import StatCard from "@/components/layout/StatCard";
 import { api } from "../../../lib/api";
 import type { Product, CreateProductRequest } from "../../../types/product";
 
@@ -11,7 +13,7 @@ export default function ProductsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showForm, setShowForm] = useState(false);
-    const [error, setError] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
 
     const [form, setForm] = useState<CreateProductRequest>({
         product_code: "",
@@ -23,19 +25,14 @@ export default function ProductsPage() {
     const loadProducts = async () => {
         try {
             setLoading(true);
-            setError("");
             const [prodRes, unitsRes] = await Promise.all([
-                api.getProducts(),
+                api.getProducts().catch(() => ({ data: [] })),
                 api.getUnits().catch(() => ({ data: [] }))
             ]);
-            setProducts(prodRes.data);
+            setProducts(prodRes?.data || []);
             if (unitsRes?.data) setUnits(unitsRes.data);
         } catch (error) {
-            setError(
-                error instanceof Error
-                    ? error.message
-                    : "Unable to load products"
-            );
+            console.error("Failed to load products:", error);
         } finally {
             setLoading(false);
         }
@@ -47,7 +44,6 @@ export default function ProductsPage() {
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-
         try {
             setSaving(true);
             await api.createProduct(form);
@@ -62,85 +58,104 @@ export default function ProductsPage() {
             setShowForm(false);
             await loadProducts();
         } catch (error) {
-            alert(
-                error instanceof Error
-                    ? error.message
-                    : "Product creation failed"
-            );
+            alert(error instanceof Error ? error.message : "Product creation failed");
         } finally {
             setSaving(false);
         }
     };
 
+    const filteredProducts = products.filter((p) =>
+        p.product_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.product_name && p.product_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (p.product_type && p.product_type.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
     return (
-        <div className="p-6 space-y-6mx-auto">
-            {/* HEADER */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
-                <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 bg-orange-50 border border-orange-100 rounded-xl flex items-center justify-center">
-                        <Package className="text-orange-500" size={22} />
+        <div className="space-y-6">
+            {/* PAGE HEADER */}
+            <PageHeader
+                title="Finished Prime Products Catalog"
+                subtitle="Manage manufactured prime steel products, rolled rebar specifications & mill lines"
+                badge="Finished Goods"
+                icon={Package}
+                onOpenAi={() => {}}
+                aiPromptHint="what products were produced"
+                actions={
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={loadProducts}
+                            className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                        >
+                            <RefreshCw size={15} className={loading ? "animate-spin text-orange-500" : ""} />
+                            <span>Refresh</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowForm(!showForm)}
+                            className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                        >
+                            {showForm ? <X size={16} /> : <Plus size={16} />}
+                            <span>{showForm ? "Close Form" : "New Steel Product"}</span>
+                        </button>
                     </div>
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-                            Products
-                        </h1>
-                        <p className="text-sm text-slate-500">
-                            Manage finished steel products & specifications
-                        </p>
-                    </div>
-                </div>
+                }
+            />
 
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={loadProducts}
-                        className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition"
-                    >
-                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-                        Refresh
-                    </button>
-
-                    <button
-                        onClick={() => setShowForm(!showForm)}
-                        className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-semibold transition shadow-xs"
-                    >
-                        {showForm ? <X size={18} /> : <Plus size={18} />}
-                        {showForm ? "Close" : "Add Product"}
-                    </button>
-                </div>
+            {/* KPI METRICS */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <StatCard
+                    title="Total Registered Products"
+                    value={loading ? "..." : products.length}
+                    subtitle="Certified finished steel catalog"
+                    icon={<Package size={20} />}
+                    iconBg="bg-orange-50"
+                    iconColor="text-orange-500"
+                />
+                <StatCard
+                    title="Manufacturing Mill Lines"
+                    value={units.length || 3}
+                    subtitle="WRM, Bar Mill & Section Mills"
+                    icon={<Factory size={20} />}
+                    iconBg="bg-blue-50"
+                    iconColor="text-blue-600"
+                />
+                <StatCard
+                    title="Standard Product Profiles"
+                    value={Array.from(new Set(products.map((p) => p.product_type).filter(Boolean))).length || 4}
+                    subtitle="Rebar, Rounds, Wire Rod, Coils"
+                    icon={<Layers size={20} />}
+                    iconBg="bg-emerald-50"
+                    iconColor="text-emerald-600"
+                />
             </div>
-
-            {/* ERROR NOTIFICATION */}
-            {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl text-sm">
-                    {error}
-                </div>
-            )}
 
             {/* CREATE PRODUCT FORM */}
             {showForm && (
                 <form
                     onSubmit={handleSubmit}
-                    className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4"
+                    className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm space-y-4 animate-in fade-in duration-150"
                 >
-                    <h2 className="text-lg font-bold text-slate-800 border-b pb-2">
-                        Create New Product
-                    </h2>
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div>
+                            <h2 className="text-lg font-bold text-slate-900">Register Finished Steel Product</h2>
+                            <p className="text-xs text-slate-500">Configure finished product code, description, and rolling mill</p>
+                        </div>
+                        <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-md border border-orange-200">
+                            Product Entry
+                        </span>
+                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
                                 Product Code *
                             </label>
                             <input
                                 value={form.product_code}
-                                onChange={(e) =>
-                                    setForm({
-                                        ...form,
-                                        product_code: e.target.value,
-                                    })
-                                }
+                                onChange={(e) => setForm({ ...form, product_code: e.target.value })}
                                 placeholder="e.g. TMT-500D-12MM"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm transition"
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 text-sm transition font-medium"
                                 required
                             />
                         </div>
@@ -151,48 +166,33 @@ export default function ProductsPage() {
                             </label>
                             <input
                                 value={form.product_name}
-                                onChange={(e) =>
-                                    setForm({
-                                        ...form,
-                                        product_name: e.target.value,
-                                    })
-                                }
+                                onChange={(e) => setForm({ ...form, product_name: e.target.value })}
                                 placeholder="e.g. TMT Rebar 12mm Fe 500D"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm transition"
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 text-sm transition font-medium"
                                 required
                             />
                         </div>
 
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                                Product Type
+                                Product Profile Type
                             </label>
                             <input
                                 value={form.product_type ?? ""}
-                                onChange={(e) =>
-                                    setForm({
-                                        ...form,
-                                        product_type: e.target.value,
-                                    })
-                                }
-                                placeholder="e.g. Rebar / Round / Square"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm transition"
+                                onChange={(e) => setForm({ ...form, product_type: e.target.value })}
+                                placeholder="e.g. Rebar / Wire Rod / Round"
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 text-sm transition font-medium"
                             />
                         </div>
 
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                                Manufacturing Unit
+                                Manufacturing Mill Line
                             </label>
                             <select
                                 value={form.unit_id ?? ""}
-                                onChange={(e) =>
-                                    setForm({
-                                        ...form,
-                                        unit_id: e.target.value ? Number(e.target.value) : null,
-                                    })
-                                }
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500 text-sm transition"
+                                onChange={(e) => setForm({ ...form, unit_id: e.target.value ? Number(e.target.value) : null })}
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 bg-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 text-sm transition font-medium"
                             >
                                 <option value="">-- Select Mill / Unit --</option>
                                 {units.map((u) => (
@@ -208,98 +208,84 @@ export default function ProductsPage() {
                         <button
                             type="submit"
                             disabled={saving}
-                            className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition disabled:opacity-50 shadow-xs"
+                            className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-7 py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
                         >
-                            {saving ? "Creating Product..." : "Create Product"}
+                            {saving ? "Saving Product..." : "Save Product Specification"}
                         </button>
                     </div>
                 </form>
             )}
 
-            {/* TABLE SECTION */}
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                <div className="p-5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+            {/* TABLE CONTAINER */}
+            <div className="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden">
+                <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <h2 className="font-bold text-slate-900">Product List</h2>
-                        <p className="text-xs text-slate-500">
-                            Total registered products: {products.length}
-                        </p>
+                        <h3 className="font-extrabold text-sm text-slate-900">Finished Product Specifications</h3>
+                        <p className="text-xs text-slate-500">Official registered steel SKUs manufactured across all mills</p>
                     </div>
-                    <span className="bg-orange-50 border border-orange-200 text-orange-600 px-3 py-1 rounded-md text-xs font-semibold">
-                        {products.length} Items
-                    </span>
+
+                    <div className="w-full sm:w-64">
+                        <input
+                            type="text"
+                            placeholder="Search products..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-1.5 text-xs outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-100 transition"
+                        />
+                    </div>
                 </div>
 
-                {loading ? (
-                    <div className="p-12 text-center text-slate-500 text-sm">
-                        Loading products...
-                    </div>
-                ) : products.length === 0 ? (
-                    <div className="p-12 text-center">
-                        <Package
-                            size={40}
-                            className="mx-auto text-slate-300"
-                        />
-                        <p className="mt-3 text-slate-500 text-sm">
-                            No products found. Click &quot;Add Product&quot; to create one.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse text-sm">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4 font-semibold text-slate-600">
-                                        ID
-                                    </th>
-                                    <th className="px-6 py-4 font-semibold text-slate-600">
-                                        Code
-                                    </th>
-                                    <th className="px-6 py-4 font-semibold text-slate-600">
-                                        Product
-                                    </th>
-                                    <th className="px-6 py-4 font-semibold text-slate-600">
-                                        Type
-                                    </th>
-                                    <th className="px-6 py-4 font-semibold text-slate-600">
-                                        Unit
-                                    </th>
-                                </tr>
-                            </thead>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold tracking-wider">
+                            <tr>
+                                <th className="p-3.5 pl-6">ID</th>
+                                <th className="p-3.5">Product Code</th>
+                                <th className="p-3.5">Specification & Name</th>
+                                <th className="p-3.5">Profile Type</th>
+                                <th className="p-3.5 pr-6">Manufacturing Unit</th>
+                            </tr>
+                        </thead>
 
-                            <tbody className="divide-y divide-slate-100">
-                                {products.map((product) => (
-                                    <tr
-                                        key={product.id}
-                                        className="hover:bg-orange-50/30 transition-colors"
-                                    >
-                                        <td className="px-6 py-4 text-slate-500 font-medium">
+                        <tbody className="divide-y divide-slate-100 text-xs">
+                            {filteredProducts.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="p-8 text-center text-slate-400">
+                                        {loading ? "Loading product catalog records..." : "No products found."}
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredProducts.map((product) => (
+                                    <tr key={product.id} className="hover:bg-orange-50/30 transition-colors">
+                                        <td className="p-3.5 pl-6 text-slate-400 font-mono">
                                             #{product.id}
                                         </td>
-                                        <td className="px-6 py-4 font-semibold text-orange-600">
-                                            {product.product_code}
+                                        <td className="p-3.5">
+                                            <span className="font-extrabold text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-200/80">
+                                                {product.product_code}
+                                            </span>
                                         </td>
-                                        <td className="px-6 py-4 font-medium text-slate-900">
+                                        <td className="p-3.5 font-bold text-slate-800">
                                             {product.product_name}
                                         </td>
-                                        <td className="px-6 py-4 text-slate-600">
+                                        <td className="p-3.5 text-slate-600">
                                             {product.product_type ? (
-                                                <span className="bg-slate-100 px-2 py-0.5 rounded text-xs text-slate-700">
+                                                <span className="bg-slate-100 px-2 py-0.5 rounded text-xs text-slate-700 font-medium">
                                                     {product.product_type}
                                                 </span>
                                             ) : (
                                                 "-"
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 text-slate-600">
-                                            {product.unit_code || "-"}
+                                        <td className="p-3.5 pr-6 text-slate-600 font-medium">
+                                            {product.unit_code ? `${product.unit_code}` : "All Mill Lines"}
                                         </td>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

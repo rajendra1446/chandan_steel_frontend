@@ -1,11 +1,6 @@
 "use client";
 
-import {
-    FormEvent,
-    useEffect,
-    useState,
-} from "react";
-
+import { FormEvent, useEffect, useState } from "react";
 import {
     ArrowRight,
     ArrowRightLeft,
@@ -14,12 +9,11 @@ import {
     Plus,
     RefreshCw,
     X,
+    Boxes,
 } from "lucide-react";
-
-import { api, Unit,
-    Transfer, } from "../../../lib/api";
-
-
+import PageHeader from "@/components/layout/PageHeader";
+import StatCard from "@/components/layout/StatCard";
+import { api, Unit, Transfer } from "../../../lib/api";
 
 interface CreateTransfer {
     billet_id: number | null;
@@ -30,297 +24,176 @@ interface CreateTransfer {
     remarks: string;
 }
 
-
-
 export default function TransfersPage() {
+    const [transfers, setTransfers] = useState<Transfer[]>([]);
+    const [units, setUnits] = useState<Unit[]>([]);
+    const [billets, setBillets] = useState<Array<{ id: number; billet_no: string; quantity: number | string; remaining_quantity?: number; heat_no: string; grade_code: string }>>([]);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [showForm, setShowForm] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
 
-    const [transfers, setTransfers] =
-        useState<Transfer[]>([]);
+    const [form, setForm] = useState<CreateTransfer>({
+        billet_id: null,
+        from_unit_id: null,
+        to_unit_id: null,
+        quantity: null,
+        transfer_type: "TRANSFER",
+        remarks: "",
+    });
 
-    const [units, setUnits] =
-        useState<Unit[]>([]);
-
-    const [loading, setLoading] =
-        useState(true);
-
-    const [saving, setSaving] =
-        useState(false);
-
-    const [showForm, setShowForm] =
-        useState(false);
-
-    const [error, setError] =
-        useState("");
-
-    const [form, setForm] =
-        useState<CreateTransfer>({
-            billet_id: null,
-            from_unit_id: null,
-            to_unit_id: null,
-            quantity: null,
-            transfer_type: "TRANSFER",
-            remarks: "",
-        });
-
-
-    const [billets, setBillets] =
-        useState<Array<{ id: number; billet_no: string; quantity: number | string; remaining_quantity?: number; heat_no: string; grade_code: string }>>([]);
-
-    // =========================
-    // GET TRANSFERS
-    // =========================
-
-    const loadTransfers = async () => {
+    const loadData = async () => {
         try {
             setLoading(true);
-            setError("");
-            const response = await api.getTransfers();
-            setTransfers(response.data);
+            const [transfersRes, unitsRes, billetsRes] = await Promise.all([
+                api.getTransfers().catch(() => ({ data: [] })),
+                api.getUnits().catch(() => ({ data: [] })),
+                api.getBillets().catch(() => ({ data: [] })),
+            ]);
+
+            setTransfers(transfersRes?.data || []);
+            setUnits(unitsRes?.data || []);
+            setBillets(billetsRes?.data || []);
         } catch (error) {
-            setError(
-                error instanceof Error
-                    ? error.message
-                    : "Unable to load transfers"
-            );
+            console.error("Failed to load transfers:", error);
         } finally {
             setLoading(false);
         }
     };
 
-    // =========================
-    // GET UNITS & BILLETS
-    // =========================
-
-    const loadUnits = async () => {
-        try {
-            const response = await api.getUnits();
-            setUnits(response.data);
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
-    const loadBillets = async () => {
-        try {
-            const response = await api.getBillets();
-            setBillets(response.data);
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
     useEffect(() => {
-        loadTransfers();
-        loadUnits();
-        loadBillets();
+        loadData();
     }, []);
 
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
 
-    // =========================
-    // CREATE TRANSFER
-    // =========================
+        if (form.billet_id === null || form.from_unit_id === null || form.to_unit_id === null || form.quantity === null) {
+            alert("Please fill in all required fields (Billet, From Unit, To Unit, Quantity)");
+            return;
+        }
 
-   const handleSubmit = async (
-    e: FormEvent<HTMLFormElement>
-) => {
+        try {
+            setSaving(true);
+            await api.createTransfer({
+                billet_id: form.billet_id,
+                from_unit_id: form.from_unit_id,
+                to_unit_id: form.to_unit_id,
+                quantity: form.quantity,
+                transfer_type: form.transfer_type,
+                remarks: form.remarks,
+            });
 
-    e.preventDefault();
+            setForm({
+                billet_id: null,
+                from_unit_id: null,
+                to_unit_id: null,
+                quantity: null,
+                transfer_type: "TRANSFER",
+                remarks: "",
+            });
 
-    const billetId = form.billet_id;
-    const fromUnitId = form.from_unit_id;
-    const toUnitId = form.to_unit_id;
-    const quantity = form.quantity;
+            setShowForm(false);
+            await loadData();
+        } catch (error) {
+            alert(error instanceof Error ? error.message : "Transfer creation failed");
+        } finally {
+            setSaving(false);
+        }
+    };
 
-    if (billetId === null) {
-        alert("Billet ID is required");
-        return;
-    }
+    // Derived statistics
+    const totalTransfers = transfers.length;
+    const totalQuantityTransferred = transfers.reduce((sum, t) => sum + (Number(t.quantity) || 0), 0);
+    const completedCount = transfers.filter((item) => item.transfer_type === "TRANSFER").length;
 
-    if (fromUnitId === null) {
-        alert("From Unit is required");
-        return;
-    }
-
-    if (toUnitId === null) {
-        alert("To Unit is required");
-        return;
-    }
-
-    if (quantity === null) {
-        alert("Quantity is required");
-        return;
-    }
-
-    try {
-
-        setSaving(true);
-
-        await api.createTransfer({
-            billet_id: billetId,
-            from_unit_id: fromUnitId,
-            to_unit_id: toUnitId,
-            quantity: quantity,
-            transfer_type: form.transfer_type,
-            remarks: form.remarks,
-        });
-
-        alert("Transfer created successfully");
-
-        setForm({
-            billet_id: null,
-            from_unit_id: null,
-            to_unit_id: null,
-            quantity: null,
-            transfer_type: "TRANSFER",
-            remarks: "",
-        });
-
-        setShowForm(false);
-
-        await loadTransfers();
-
-    } catch (error) {
-
-        alert(
-            error instanceof Error
-                ? error.message
-                : "Transfer creation failed"
-        );
-
-    } finally {
-
-        setSaving(false);
-    }
-};
+    const filteredTransfers = transfers.filter((t) =>
+        (t.billet_no && t.billet_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (t.from_unit && t.from_unit.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (t.to_unit && t.to_unit.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (t.remarks && t.remarks.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
 
     return (
-
-        <div>
-
-            {/* ================= HEADER ================= */}
-
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-
-                <div>
-
-                    <div className="flex items-center gap-3">
-
-                        <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center">
-
-                            <ArrowRightLeft
-                                size={24}
-                                className="text-orange-500"
-                            />
-
-                        </div>
-
-                        <div>
-
-                            <h1 className="text-3xl font-bold">
-                                Material Transfers
-                            </h1>
-
-                            <p className="text-slate-500 mt-1">
-                                Track billet movement between units
-                            </p>
-
-                        </div>
-
+        <div className="space-y-6">
+            {/* PAGE HEADER */}
+            <PageHeader
+                title="Material Transfers & Unit Logistics"
+                subtitle="Track cast billet movement between SMS furnace bays, stock yards, and rolling mills"
+                badge="Inter-Unit Logistics"
+                icon={ArrowRightLeft}
+                onOpenAi={() => {}}
+                aiPromptHint="show billet transfer history"
+                actions={
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={loadData}
+                            className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                        >
+                            <RefreshCw size={15} className={loading ? "animate-spin text-orange-500" : ""} />
+                            <span>Refresh</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowForm(!showForm)}
+                            className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                        >
+                            {showForm ? <X size={16} /> : <Plus size={16} />}
+                            <span>{showForm ? "Close Form" : "New Transfer"}</span>
+                        </button>
                     </div>
+                }
+            />
 
-                </div>
-
-
-                <div className="flex gap-3">
-
-                    <button
-                        onClick={
-                            loadTransfers
-                        }
-                        className="flex items-center gap-2 px-4 py-2.5 bg-white border rounded-lg hover:bg-slate-50"
-                    >
-
-                        <RefreshCw
-                            size={17}
-                        />
-
-                        Refresh
-
-                    </button>
-
-
-                    <button
-                        onClick={() =>
-                            setShowForm(
-                                !showForm
-                            )
-                        }
-                        className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium"
-                    >
-
-                        {showForm ? (
-                            <X size={18} />
-                        ) : (
-                            <Plus size={18} />
-                        )}
-
-                        {showForm
-                            ? "Close"
-                            : "New Transfer"}
-
-                    </button>
-
-                </div>
-
+            {/* KPI METRIC STRIP */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <StatCard
+                    title="Total Transfers"
+                    value={loading ? "..." : totalTransfers}
+                    subtitle="Logged material movements"
+                    icon={<ArrowRightLeft size={20} />}
+                    iconBg="bg-orange-50"
+                    iconColor="text-orange-500"
+                />
+                <StatCard
+                    title="Standard Unit Transfers"
+                    value={completedCount}
+                    subtitle="SMS to Mill Lines"
+                    icon={<CheckCircle2 size={20} />}
+                    iconBg="bg-emerald-50"
+                    iconColor="text-emerald-600"
+                />
+                <StatCard
+                    title="Total Volume Shifted"
+                    value={`${(totalQuantityTransferred / 1000).toFixed(1)} MT`}
+                    subtitle={`${totalQuantityTransferred.toLocaleString()} KG transferred`}
+                    icon={<Boxes size={20} />}
+                    iconBg="bg-blue-50"
+                    iconColor="text-blue-600"
+                />
             </div>
 
-
-            {/* ================= ERROR ================= */}
-
-            {error && (
-
-                <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl">
-
-                    {error}
-
-                </div>
-
-            )}
-
-
-            {/* ================= CREATE FORM ================= */}
-
+            {/* CREATE TRANSFER FORM */}
             {showForm && (
-
                 <form
-                    onSubmit={
-                        handleSubmit
-                    }
-                    className="bg-white border rounded-2xl p-6 mb-6"
+                    onSubmit={handleSubmit}
+                    className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm space-y-4 animate-in fade-in duration-150"
                 >
-
-                    <div className="flex items-center justify-between mb-6">
-
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                         <div>
-
-                            <h2 className="text-xl font-bold">
-                                Create Transfer
-                            </h2>
-
-                            <p className="text-sm text-slate-500">
-                                Transfer material from one unit to another
-                            </p>
-
+                            <h2 className="text-lg font-bold text-slate-900">Initiate Material Transfer</h2>
+                            <p className="text-xs text-slate-500">Dispatch cast billets to rolling mill staging bays</p>
                         </div>
-
+                        <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-md border border-orange-200">
+                            Unit Dispatch
+                        </span>
                     </div>
 
-
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-
-                        {/* BILLET */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {/* BILLET SELECTOR */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
                                 Select Billet *
                             </label>
                             <select
@@ -334,7 +207,7 @@ export default function TransfersPage() {
                                         quantity: chosen ? Number(chosen.remaining_quantity ?? chosen.quantity) : form.quantity,
                                     });
                                 }}
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500"
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 bg-white text-xs outline-none focus:border-orange-500 font-medium"
                                 required
                             >
                                 <option value="">-- Choose Billet --</option>
@@ -346,620 +219,189 @@ export default function TransfersPage() {
                             </select>
                         </div>
 
-
                         {/* FROM UNIT */}
-
                         <div>
-
-                            <label className="block text-sm font-medium mb-2">
-                                From Unit
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                From Unit *
                             </label>
-
                             <select
-                                value={
-                                    form.from_unit_id ??
-                                    ""
-                                }
-                                onChange={(e) =>
-                                    setForm({
-                                        ...form,
-                                        from_unit_id:
-                                            e.target.value
-                                                ? Number(
-                                                      e.target.value
-                                                  )
-                                                : null,
-                                    })
-                                }
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500"
+                                value={form.from_unit_id ?? ""}
+                                onChange={(e) => setForm({ ...form, from_unit_id: e.target.value ? Number(e.target.value) : null })}
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 bg-white text-xs outline-none focus:border-orange-500 font-medium"
                                 required
                             >
-
-                                <option value="">
-                                    Select Unit
-                                </option>
-
-                                {units.map(
-                                    (unit) => (
-
-                                        <option
-                                            key={
-                                                unit.id
-                                            }
-                                            value={
-                                                unit.id
-                                            }
-                                        >
-                                            {
-                                                unit.unit_code
-                                            }{" "}
-                                            -{" "}
-                                            {
-                                                unit.unit_name
-                                            }
-                                        </option>
-
-                                    )
-                                )}
-
+                                <option value="">Select Origin Unit</option>
+                                {units.map((unit) => (
+                                    <option key={unit.id} value={unit.id}>
+                                        {unit.unit_code} - {unit.unit_name}
+                                    </option>
+                                ))}
                             </select>
-
                         </div>
-
 
                         {/* TO UNIT */}
-
                         <div>
-
-                            <label className="block text-sm font-medium mb-2">
-                                To Unit
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                To Unit *
                             </label>
-
                             <select
-                                value={
-                                    form.to_unit_id ??
-                                    ""
-                                }
-                                onChange={(e) =>
-                                    setForm({
-                                        ...form,
-                                        to_unit_id:
-                                            e.target.value
-                                                ? Number(
-                                                      e.target.value
-                                                  )
-                                                : null,
-                                    })
-                                }
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500"
+                                value={form.to_unit_id ?? ""}
+                                onChange={(e) => setForm({ ...form, to_unit_id: e.target.value ? Number(e.target.value) : null })}
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 bg-white text-xs outline-none focus:border-orange-500 font-medium"
                                 required
                             >
-
-                                <option value="">
-                                    Select Unit
-                                </option>
-
-                                {units.map(
-                                    (unit) => (
-
-                                        <option
-                                            key={
-                                                unit.id
-                                            }
-                                            value={
-                                                unit.id
-                                            }
-                                        >
-                                            {
-                                                unit.unit_code
-                                            }{" "}
-                                            -{" "}
-                                            {
-                                                unit.unit_name
-                                            }
-                                        </option>
-
-                                    )
-                                )}
-
+                                <option value="">Select Destination Unit</option>
+                                {units.map((unit) => (
+                                    <option key={unit.id} value={unit.id}>
+                                        {unit.unit_code} - {unit.unit_name}
+                                    </option>
+                                ))}
                             </select>
-
                         </div>
 
-
                         {/* QUANTITY */}
-
                         <div>
-
-                            <label className="block text-sm font-medium mb-2">
-                                Quantity (KG)
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                Quantity (KG) *
                             </label>
-
                             <input
                                 type="number"
                                 step="0.001"
-                                min="0"
-                                value={
-                                    form.quantity ??
-                                    ""
-                                }
-                                onChange={(e) =>
-                                    setForm({
-                                        ...form,
-                                        quantity:
-                                            e.target.value
-                                                ? Number(
-                                                      e.target.value
-                                                  )
-                                                : null,
-                                    })
-                                }
-                                placeholder="Example: 3000"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500"
+                                min="0.001"
+                                value={form.quantity ?? ""}
+                                onChange={(e) => setForm({ ...form, quantity: e.target.value ? Number(e.target.value) : null })}
+                                placeholder="e.g. 3000"
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500 font-medium"
                                 required
                             />
-
                         </div>
-
 
                         {/* TRANSFER TYPE */}
-
                         <div>
-
-                            <label className="block text-sm font-medium mb-2">
-                                Transfer Type
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                Transfer Classification
                             </label>
-
                             <select
-                                value={
-                                    form.transfer_type
-                                }
-                                onChange={(e) =>
-                                    setForm({
-                                        ...form,
-                                        transfer_type:
-                                            e.target.value,
-                                    })
-                                }
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-orange-500"
+                                value={form.transfer_type}
+                                onChange={(e) => setForm({ ...form, transfer_type: e.target.value })}
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 bg-white text-xs outline-none focus:border-orange-500 font-medium"
                             >
-
-                                <option value="TRANSFER">
-                                    TRANSFER
-                                </option>
-
-                                <option value="RETURN">
-                                    RETURN
-                                </option>
-
-                                <option value="ADJUSTMENT">
-                                    ADJUSTMENT
-                                </option>
-
+                                <option value="TRANSFER">STANDARD TRANSFER</option>
+                                <option value="RETURN">MATERIAL RETURN</option>
+                                <option value="ADJUSTMENT">STOCK ADJUSTMENT</option>
                             </select>
-
                         </div>
-
 
                         {/* REMARKS */}
-
-                        <div className="md:col-span-2 lg:col-span-3">
-
-                            <label className="block text-sm font-medium mb-2">
-                                Remarks
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                Movement Remarks
                             </label>
-
-                            <textarea
-                                rows={3}
-                                value={
-                                    form.remarks
-                                }
-                                onChange={(e) =>
-                                    setForm({
-                                        ...form,
-                                        remarks:
-                                            e.target.value,
-                                    })
-                                }
-                                placeholder="Example: SMS to WRM"
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500 resize-none"
+                            <input
+                                type="text"
+                                value={form.remarks}
+                                onChange={(e) => setForm({ ...form, remarks: e.target.value })}
+                                placeholder="e.g. Billet yard bay 2 to WRM furnace inlet"
+                                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-orange-500 font-medium"
                             />
-
                         </div>
-
                     </div>
 
-
-                    <div className="flex justify-end mt-6">
-
+                    <div className="flex justify-end pt-2">
                         <button
                             type="submit"
                             disabled={saving}
-                            className="bg-slate-950 hover:bg-slate-800 text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50"
+                            className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-7 py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
                         >
-
-                            {saving
-                                ? "Creating..."
-                                : "Create Transfer"}
-
+                            {saving ? "Creating Transfer..." : "Confirm Material Transfer"}
                         </button>
-
                     </div>
-
                 </form>
-
             )}
 
+            {/* TRANSFERS TABLE CONTAINER */}
+            <div className="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden">
+                <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 className="font-extrabold text-sm text-slate-900">Material Movement Log</h3>
+                        <p className="text-xs text-slate-500">Historical dispatch and receipt log across all units</p>
+                    </div>
 
-            {/* ================= SUMMARY ================= */}
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
-
-                <SummaryCard
-                    title="Total Transfers"
-                    value={
-                        transfers.length
-                    }
-                    icon={
-                        <ArrowRightLeft
-                            size={22}
+                    <div className="w-full sm:w-64">
+                        <input
+                            type="text"
+                            placeholder="Search transfers, units, billets..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-1.5 text-xs outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-100 transition"
                         />
-                    }
-                />
-
-                <SummaryCard
-                    title="Completed"
-                    value={
-                        transfers.filter(
-                            (item) =>
-                                item.transfer_type ===
-                                "TRANSFER"
-                        ).length
-                    }
-                    icon={
-                        <CheckCircle2
-                            size={22}
-                        />
-                    }
-                />
-
-                <SummaryCard
-                    title="Latest Transfer"
-                    value={
-                        transfers.length > 0
-                            ? formatDate(
-                                  transfers[0]
-                                      .transfer_date
-                              )
-                            : "-"
-                    }
-                    icon={
-                        <Clock
-                            size={22}
-                        />
-                    }
-                />
-
-            </div>
-
-
-            {/* ================= TABLE ================= */}
-
-            <div className="bg-white border rounded-2xl overflow-hidden">
-
-                <div className="p-6 border-b">
-
-                    <h2 className="text-xl font-bold">
-                        Transfer History
-                    </h2>
-
-                    <p className="text-sm text-slate-500 mt-1">
-                        Complete material movement history
-                    </p>
-
+                    </div>
                 </div>
 
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold tracking-wider">
+                            <tr>
+                                <th className="p-3.5 pl-6">ID</th>
+                                <th className="p-3.5">Billet Item</th>
+                                <th className="p-3.5">Transit Movement</th>
+                                <th className="p-3.5">Weight (KG)</th>
+                                <th className="p-3.5">Type</th>
+                                <th className="p-3.5">Date</th>
+                                <th className="p-3.5 pr-6">Remarks</th>
+                            </tr>
+                        </thead>
 
-                {loading ? (
-
-                    <div className="p-12 text-center text-slate-500">
-                        Loading transfers...
-                    </div>
-
-                ) : transfers.length === 0 ? (
-
-                    <div className="p-12 text-center">
-
-                        <ArrowRightLeft
-                            size={42}
-                            className="mx-auto text-slate-300"
-                        />
-
-                        <p className="mt-3 font-medium">
-                            No transfers found
-                        </p>
-
-                        <p className="text-sm text-slate-500 mt-1">
-                            Create your first material transfer.
-                        </p>
-
-                    </div>
-
-                ) : (
-
-                    <div className="overflow-x-auto">
-
-                        <table className="w-full">
-
-                            <thead className="bg-slate-50">
-
+                        <tbody className="divide-y divide-slate-100 text-xs">
+                            {filteredTransfers.length === 0 ? (
                                 <tr>
-
-                                    <th className="text-left px-6 py-4 text-sm font-semibold">
-                                        ID
-                                    </th>
-
-                                    <th className="text-left px-6 py-4 text-sm font-semibold">
-                                        Billet
-                                    </th>
-
-                                    <th className="text-left px-6 py-4 text-sm font-semibold">
-                                        Movement
-                                    </th>
-
-                                    <th className="text-left px-6 py-4 text-sm font-semibold">
-                                        Quantity
-                                    </th>
-
-                                    <th className="text-left px-6 py-4 text-sm font-semibold">
-                                        Type
-                                    </th>
-
-                                    <th className="text-left px-6 py-4 text-sm font-semibold">
-                                        Date
-                                    </th>
-
-                                    <th className="text-left px-6 py-4 text-sm font-semibold">
-                                        Remarks
-                                    </th>
-
+                                    <td colSpan={7} className="p-8 text-center text-slate-400">
+                                        {loading ? "Loading transfer records..." : "No material transfers found."}
+                                    </td>
                                 </tr>
-
-                            </thead>
-
-
-                            <tbody>
-
-                                {transfers.map(
-                                    (transfer) => (
-
-                                        <tr
-                                            key={
-                                                transfer.id
-                                            }
-                                            className="border-t hover:bg-slate-50"
-                                        >
-
-                                            {/* ID */}
-
-                                            <td className="px-6 py-4 font-medium">
-                                                {
-                                                    transfer.id
-                                                }
-                                            </td>
-
-
-                                            {/* BILLET */}
-
-                                            <td className="px-6 py-4">
-
-                                                <p className="font-semibold">
-                                                    {
-                                                        transfer.billet_no ||
-                                                        `Billet #${transfer.billet_id ?? "-"}`
-                                                    }
-                                                </p>
-
-                                            </td>
-
-
-                                            {/* MOVEMENT */}
-
-                                            <td className="px-6 py-4">
-
-                                                <div className="flex items-center gap-3">
-
-                                                    <div>
-
-                                                        <p className="font-semibold">
-                                                            {
-                                                                transfer.from_unit
-                                                            }
-                                                        </p>
-
-                                                        {transfer.from_unit_name && (
-
-                                                            <p className="text-xs text-slate-500">
-                                                                {
-                                                                    transfer.from_unit_name
-                                                                }
-                                                            </p>
-
-                                                        )}
-
-                                                    </div>
-
-
-                                                    <ArrowRight
-                                                        size={18}
-                                                        className="text-orange-500 flex-shrink-0"
-                                                    />
-
-
-                                                    <div>
-
-                                                        <p className="font-semibold">
-                                                            {
-                                                                transfer.to_unit
-                                                            }
-                                                        </p>
-
-                                                        {transfer.to_unit_name && (
-
-                                                            <p className="text-xs text-slate-500">
-                                                                {
-                                                                    transfer.to_unit_name
-                                                                }
-                                                            </p>
-
-                                                        )}
-
-                                                    </div>
-
-                                                </div>
-
-                                            </td>
-
-
-                                            {/* QUANTITY */}
-
-                                            <td className="px-6 py-4">
-
-                                                <span className="font-semibold">
-                                                    {
-                                                        transfer.quantity
-                                                    }
+                            ) : (
+                                filteredTransfers.map((t) => (
+                                    <tr key={t.id} className="hover:bg-orange-50/30 transition-colors">
+                                        <td className="p-3.5 pl-6 text-slate-400 font-mono">
+                                            #{t.id}
+                                        </td>
+                                        <td className="p-3.5 font-bold text-slate-900">
+                                            {t.billet_no ? (
+                                                <span className="text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-200 font-mono">
+                                                    {t.billet_no}
                                                 </span>
-
-                                                <span className="text-sm text-slate-500 ml-1">
-                                                    KG
-                                                </span>
-
-                                            </td>
-
-
-                                            {/* TYPE */}
-
-                                            <td className="px-6 py-4">
-
-                                                <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-
-                                                    {
-                                                        transfer.transfer_type
-                                                    }
-
-                                                </span>
-
-                                            </td>
-
-
-                                            {/* DATE */}
-
-                                            <td className="px-6 py-4 text-sm">
-
-                                                {
-                                                    formatDate(
-                                                        transfer.transfer_date
-                                                    )
-                                                }
-
-                                            </td>
-
-
-                                            {/* REMARKS */}
-
-                                            <td className="px-6 py-4 text-sm text-slate-500">
-
-                                                {
-                                                    transfer.remarks ||
-                                                    "-"
-                                                }
-
-                                            </td>
-
-                                        </tr>
-
-                                    )
-                                )}
-
-                            </tbody>
-
-                        </table>
-
-                    </div>
-
-                )}
-
-            </div>
-
-        </div>
-    );
-}
-
-
-// =========================
-// SUMMARY CARD
-// =========================
-
-function SummaryCard({
-    title,
-    value,
-    icon,
-}: {
-    title: string;
-    value: string | number;
-    icon: React.ReactNode;
-}) {
-
-    return (
-
-        <div className="bg-white border rounded-2xl p-5">
-
-            <div className="flex items-center justify-between">
-
-                <div>
-
-                    <p className="text-sm text-slate-500">
-                        {title}
-                    </p>
-
-                    <p className="text-2xl font-bold mt-1">
-                        {value}
-                    </p>
-
+                                            ) : (
+                                                <span className="text-slate-400">Billet #{t.billet_id ?? "-"}</span>
+                                            )}
+                                        </td>
+                                        <td className="p-3.5">
+                                            <div className="flex items-center gap-2 font-bold text-slate-800">
+                                                <span>{t.from_unit}</span>
+                                                <ArrowRight size={14} className="text-orange-500 shrink-0" />
+                                                <span className="text-emerald-700">{t.to_unit}</span>
+                                            </div>
+                                        </td>
+                                        <td className="p-3.5 font-extrabold text-slate-900">
+                                            {Number(t.quantity).toLocaleString()} KG
+                                        </td>
+                                        <td className="p-3.5">
+                                            <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                                {t.transfer_type}
+                                            </span>
+                                        </td>
+                                        <td className="p-3.5 text-slate-600">
+                                            {new Date(t.transfer_date).toLocaleDateString()}
+                                        </td>
+                                        <td className="p-3.5 pr-6 text-slate-500">
+                                            {t.remarks || "-"}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-
-                <div className="w-11 h-11 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center">
-
-                    {icon}
-
-                </div>
-
             </div>
-
         </div>
-    );
-}
-
-
-// =========================
-// DATE FORMAT
-// =========================
-
-function formatDate(
-    date: string
-): string {
-
-    if (!date) {
-        return "-";
-    }
-
-    return new Date(date).toLocaleDateString(
-        "en-IN",
-        {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-        }
     );
 }

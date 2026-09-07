@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Boxes, Plus, RefreshCw, Layers, Scale, CheckCircle2, X } from 'lucide-react';
+import PageHeader from '@/components/layout/PageHeader';
+import StatCard from '@/components/layout/StatCard';
 import { api } from '@/lib/api';
 
 interface HeatOption {
@@ -39,9 +42,10 @@ export default function BilletsPage() {
   const [grades, setGrades] = useState<GradeOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [selectedHeat, setSelectedHeat] = useState<HeatOption | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Form State matching backend requirements
   const [form, setForm] = useState({
     billet_no: '',
     heat_id: '',
@@ -50,7 +54,6 @@ export default function BilletsPage() {
     production_date: new Date().toISOString().split('T')[0]
   });
 
-  // Initial Fetch: Billets, Heats & Grades
   const loadData = async () => {
     setLoading(true);
     try {
@@ -83,7 +86,6 @@ export default function BilletsPage() {
     loadData();
   }, []);
 
-  // When user picks a Heat -> Auto-select grade
   const handleHeatChange = (heatIdStr: string) => {
     const heatObj = heats.find((h) => h.id === Number(heatIdStr)) || null;
     setSelectedHeat(heatObj);
@@ -95,10 +97,8 @@ export default function BilletsPage() {
     }));
   };
 
-  // Handle Form Submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!form.billet_no || !form.heat_id || !form.grade_id || !form.quantity || !form.production_date) {
       alert('All fields are required.');
       return;
@@ -115,7 +115,6 @@ export default function BilletsPage() {
       });
 
       if (result.success) {
-        // Reset form
         setForm({
           billet_no: '',
           heat_id: '',
@@ -124,7 +123,7 @@ export default function BilletsPage() {
           production_date: new Date().toISOString().split('T')[0]
         });
         setSelectedHeat(null);
-        // Refresh Table
+        setShowForm(false);
         await loadData();
       } else {
         alert(result.message || 'Error recording billet');
@@ -137,212 +136,306 @@ export default function BilletsPage() {
     }
   };
 
+  // Metrics
+  const totalBillets = billets.length;
+  const totalWeight = billets.reduce((sum, b) => sum + (Number(b.quantity) || 0), 0);
+  const availableBillets = billets.filter((b) => b.status === 'AVAILABLE');
+  const availableWeight = availableBillets.reduce((sum, b) => sum + (Number(b.remaining_quantity ?? b.quantity) || 0), 0);
+  const consumedBillets = billets.filter((b) => b.status === 'CONSUMED' || Number(b.consumed_quantity) > 0);
+  const consumedWeight = billets.reduce((sum, b) => sum + (Number(b.consumed_quantity) || 0), 0);
+
+  const filteredBillets = billets.filter((b) =>
+    b.billet_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (b.heat_no && b.heat_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (b.grade_code && b.grade_code.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   return (
-    <div className="p-6 space-y-6  mx-auto">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Billet Casting & Management</h1>
-          <p className="text-sm text-gray-500">Heats se cast huye billets ko register aur track karein</p>
-        </div>
-        <div className="bg-blue-50 border border-blue-200 px-4 py-2 rounded-lg text-sm text-blue-800 font-medium">
-          Total Billets: {billets.length}
-        </div>
+    <div className="space-y-6">
+      {/* PAGE HEADER */}
+      <PageHeader
+        title="Cast Billet Inventory & Cutting"
+        subtitle="Continuous cast billet yard inventory, heat heat-stamps, and rolling mill consumption"
+        badge="Continuous Caster"
+        icon={Boxes}
+        onOpenAi={() => {}}
+        aiPromptHint="how many billet were consume and remain"
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={loadData}
+              className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+            >
+              <RefreshCw size={15} className={loading ? 'animate-spin text-orange-500' : ''} />
+              <span>Refresh</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm(!showForm)}
+              className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+            >
+              {showForm ? <X size={16} /> : <Plus size={16} />}
+              <span>{showForm ? 'Close Form' : 'Register Cast Billet'}</span>
+            </button>
+          </div>
+        }
+      />
+
+      {/* KPI METRIC STRIP */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Cast Billets"
+          value={loading ? '...' : totalBillets}
+          subtitle={`Total Cast: ${(totalWeight / 1000).toFixed(1)} MT`}
+          icon={<Boxes size={20} />}
+          iconBg="bg-orange-50"
+          iconColor="text-orange-500"
+        />
+        <StatCard
+          title="Available in Yard"
+          value={availableBillets.length}
+          subtitle={`Ready for mill: ${(availableWeight / 1000).toFixed(1)} MT`}
+          icon={<CheckCircle2 size={20} />}
+          iconBg="bg-emerald-50"
+          iconColor="text-emerald-600"
+        />
+        <StatCard
+          title="Consumed in Rolling"
+          value={consumedBillets.length}
+          subtitle={`Processed: ${(consumedWeight / 1000).toFixed(1)} MT`}
+          icon={<Scale size={20} />}
+          iconBg="bg-blue-50"
+          iconColor="text-blue-600"
+        />
+        <StatCard
+          title="Total Yard Weight"
+          value={`${totalWeight.toLocaleString()} KG`}
+          subtitle="Net continuous cast volume"
+          icon={<Layers size={20} />}
+          iconBg="bg-purple-50"
+          iconColor="text-purple-600"
+        />
       </div>
 
-      {/* Entry Form */}
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-5">
-        <h2 className="text-lg font-semibold text-gray-800 border-b pb-2">New Billet Entry</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* 1. Heat Selection */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">
-              Heat Number *
-            </label>
-            <select
-              required
-              className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500"
-              value={form.heat_id}
-              onChange={(e) => handleHeatChange(e.target.value)}
-            >
-              <option value="">-- Heat Select Karein --</option>
-              {heats.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.heat_no} ({h.grade_code})
-                </option>
-              ))}
-            </select>
+      {/* NEW BILLET FORM */}
+      {showForm && (
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/90 space-y-5 animate-in fade-in duration-150"
+        >
+          <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Continuous Cast Billet Entry</h2>
+              <p className="text-xs text-slate-500">Log new cast billets cut from furnace heats</p>
+            </div>
+            <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-md border border-orange-200">
+              Caster Output
+            </span>
           </div>
 
-          {/* 2. Grade Selection (Auto selected or manual fallback) */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">
-              Grade *
-            </label>
-            <select
-              required
-              className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500"
-              value={form.grade_id}
-              onChange={(e) => setForm({ ...form, grade_id: e.target.value })}
-            >
-              <option value="">-- Grade --</option>
-              {grades.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.grade_code} - {g.grade_name}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Heat Selection */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                Furnace Heat *
+              </label>
+              <select
+                required
+                className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-orange-500 bg-white font-medium"
+                value={form.heat_id}
+                onChange={(e) => handleHeatChange(e.target.value)}
+              >
+                <option value="">-- Select Heat --</option>
+                {heats.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.heat_no} ({h.grade_code})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Grade Selection */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                Steel Grade *
+              </label>
+              <select
+                required
+                className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-orange-500 bg-white font-medium"
+                value={form.grade_id}
+                onChange={(e) => setForm({ ...form, grade_id: e.target.value })}
+              >
+                <option value="">-- Grade --</option>
+                {grades.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.grade_code} - {g.grade_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Billet Number */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                Billet Stamp / No *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. BIL-2026-001"
+                className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-orange-500 font-medium"
+                value={form.billet_no}
+                onChange={(e) => setForm({ ...form, billet_no: e.target.value })}
+              />
+            </div>
+
+            {/* Weight */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                Weight (KG) *
+              </label>
+              <input
+                type="number"
+                step="0.001"
+                required
+                placeholder="e.g. 2500.000"
+                className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-orange-500 font-medium"
+                value={form.quantity}
+                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+              />
+            </div>
+
+            {/* Production Date */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                Casting Date *
+              </label>
+              <input
+                type="date"
+                required
+                className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-orange-500 font-medium"
+                value={form.production_date}
+                onChange={(e) => setForm({ ...form, production_date: e.target.value })}
+              />
+            </div>
           </div>
 
-          {/* 3. Billet Number */}
+          {/* Selected Heat Live Preview */}
+          {selectedHeat && (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs flex flex-wrap gap-5 items-center text-slate-700">
+              <div>
+                <span className="text-slate-500">Selected Heat:</span>{' '}
+                <span className="font-extrabold text-orange-600">{selectedHeat.heat_no}</span>
+              </div>
+              <div>
+                <span className="text-slate-500">Grade Specification:</span>{' '}
+                <span className="font-bold text-slate-900">{selectedHeat.grade_code} ({selectedHeat.grade_name})</span>
+              </div>
+              {selectedHeat.total_output_qty !== undefined && (
+                <div>
+                  <span className="text-slate-500">Furnace Output:</span>{' '}
+                  <span className="font-bold text-emerald-700">{selectedHeat.total_output_qty} KG</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-7 py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-50 shadow-sm cursor-pointer"
+            >
+              {isSubmitting ? 'Registering Billet...' : 'Create Cast Billet'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* BILLETS TABLE CONTAINER */}
+      <div className="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden">
+        <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">
-              Billet No / Heat Stamp *
-            </label>
+            <h3 className="font-extrabold text-sm text-slate-900">Continuous Cast Billets Yard Stock</h3>
+            <p className="text-xs text-slate-500">All registered billets linked to parent heats and rolling status</p>
+          </div>
+
+          <div className="w-full sm:w-64">
             <input
               type="text"
-              required
-              placeholder="e.g. BIL-2026-001"
-              className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500"
-              value={form.billet_no}
-              onChange={(e) => setForm({ ...form, billet_no: e.target.value })}
+              placeholder="Search billets, heats, grades..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-1.5 text-xs outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-100 transition"
             />
           </div>
-
-          {/* 4. Weight (Quantity in KG) */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">
-              Weight (KG) *
-            </label>
-            <input
-              type="number"
-              step="0.001"
-              required
-              placeholder="e.g. 2500.000"
-              className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500"
-              value={form.quantity}
-              onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-            />
-          </div>
-
-          {/* 5. Production Date */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">
-              Production Date *
-            </label>
-            <input
-              type="date"
-              required
-              className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-orange-500"
-              value={form.production_date}
-              onChange={(e) => setForm({ ...form, production_date: e.target.value })}
-            />
-          </div>
-        </div>
-
-        {/* Selected Heat Live Overview */}
-        {selectedHeat && (
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs flex flex-wrap gap-6 items-center text-slate-700">
-            <div>
-              <span className="font-semibold text-gray-500">Selected Heat:</span>{' '}
-              <span className="font-bold text-orange-500">{selectedHeat.heat_no}</span>
-            </div>
-            <div>
-              <span className="font-semibold text-gray-500">Associated Grade:</span>{' '}
-              <span className="font-bold text-gray-900">{selectedHeat.grade_code} ({selectedHeat.grade_name})</span>
-            </div>
-            {selectedHeat.total_output_qty !== undefined && (
-              <div>
-                <span className="font-semibold text-gray-500">Furnace Output:</span>{' '}
-                <span className="font-bold text-emerald-700">{selectedHeat.total_output_qty} KG</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Submit Button */}
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-50"
-          >
-            {isSubmitting ? 'Creating Billet' : '+ Create Cast Billet'}
-          </button>
-        </div>
-      </form>
-
-      {/* Billets Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-200 bg-gray-50/50 flex justify-between items-center">
-          <h3 className="font-bold text-gray-800">Cast Billets Stock</h3>
-          {loading && <span className="text-xs text-gray-500 animate-pulse">Loading data...</span>}
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold tracking-wider">
               <tr>
-                <th className="p-3.5 font-semibold text-gray-600">Billet No</th>
-                <th className="p-3.5 font-semibold text-gray-600">Heat No</th>
-                <th className="p-3.5 font-semibold text-gray-600">Grade</th>
-                <th className="p-3.5 font-semibold text-gray-600">Weight</th>
-                <th className="p-3.5 font-semibold text-gray-600">Cast / Prod Date</th>
-                <th className="p-3.5 font-semibold text-gray-600">Status</th>
+                <th className="p-3.5 pl-6">Billet Stamp</th>
+                <th className="p-3.5">Parent Heat</th>
+                <th className="p-3.5">Steel Grade</th>
+                <th className="p-3.5">Cast Weight</th>
+                <th className="p-3.5">Casting Date</th>
+                <th className="p-3.5 pr-6">Yard Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {billets.length === 0 ? (
+            <tbody className="divide-y divide-slate-100 text-xs">
+              {filteredBillets.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-gray-400">
-                    {loading ? 'Problem Data fetching' : 'No record found'}
+                  <td colSpan={6} className="p-8 text-center text-slate-400">
+                    {loading ? 'Loading cast billet stock records...' : 'No billets found.'}
                   </td>
                 </tr>
               ) : (
-                billets.map((b) => (
-                  <tr key={b.id} className="hover:bg-blue-50/30 transition-colors">
-                    <td className="p-3.5 font-semibold text-gray-900">
+                filteredBillets.map((b) => (
+                  <tr key={b.id} className="hover:bg-orange-50/30 transition-colors">
+                    <td className="p-3.5 pl-6 font-bold text-slate-900">
                       <Link
                         href={`/dashboard/traceability?billet=${encodeURIComponent(b.billet_no)}`}
-                        className="hover:text-orange-600 hover:underline"
-                        title="Click to view billet traceability"
+                        className="hover:text-orange-600 hover:underline flex items-center gap-1.5"
+                        title="Click to view full billet traceability"
                       >
-                        {b.billet_no}
+                        <span>{b.billet_no}</span>
+                        <span className="text-[10px] text-slate-400">→</span>
                       </Link>
                     </td>
                     <td className="p-3.5">
                       <Link
                         href={`/dashboard/traceability?heat=${encodeURIComponent(b.heat_no)}`}
-                        title="Click to view all billet traceability for this heat"
-                        className="inline-flex items-center gap-1 font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2 py-0.5 rounded text-xs transition"
+                        title="Click to trace parent heat"
+                        className="inline-flex items-center gap-1 font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2 py-0.5 rounded text-xs transition"
                       >
                         <span>{b.heat_no}</span>
                         <span className="text-[10px] text-orange-600">→</span>
                       </Link>
                     </td>
-                    <td className="p-3.5 text-gray-700">
-                      <div className="font-medium text-gray-900">{b.grade_code}</div>
-                      <div className="text-xs text-gray-500">{b.grade_name}</div>
+                    <td className="p-3.5 text-slate-700">
+                      <div className="font-bold text-slate-900">{b.grade_code}</div>
+                      <div className="text-[11px] text-slate-400">{b.grade_name}</div>
                     </td>
-                    <td className="p-3.5 font-bold text-gray-900">
+                    <td className="p-3.5 font-bold text-slate-900">
                       {Number(b.quantity).toLocaleString()} {b.unit || 'KG'}
                     </td>
-                    <td className="p-3.5 text-gray-600">
+                    <td className="p-3.5 text-slate-600">
                       {new Date(b.production_date).toLocaleDateString('en-IN', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric'
                       })}
                     </td>
-                    <td className="p-3.5">
+                    <td className="p-3.5 pr-6">
                       <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                           b.status === 'AVAILABLE'
                             ? 'bg-emerald-100 text-emerald-800'
                             : b.status === 'IN_PRODUCTION'
                             ? 'bg-amber-100 text-amber-800'
-                            : 'bg-gray-100 text-gray-800'
+                            : 'bg-slate-100 text-slate-800'
                         }`}
                       >
                         {b.status}

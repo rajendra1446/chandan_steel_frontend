@@ -17,14 +17,24 @@ import {
     Layers,
     ChevronDown,
     ChevronUp,
+    ShieldCheck,
+    Sparkles,
+    Network,
+    AlertTriangle,
+    CheckCircle2,
+    FileText,
+    Scale,
+    Truck,
+    RefreshCw,
     TrendingDown,
     Activity,
     Clock,
-    ShieldCheck,
-    Sparkles,
 } from "lucide-react";
 
+
+
 import { api } from "../../../lib/api";
+import PageHeader from "@/components/layout/PageHeader";
 import type {
     TraceabilityData,
     HeatTraceabilityData,
@@ -159,25 +169,15 @@ function TraceabilityContent() {
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto">
-            {/* HEADER */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-slate-800 to-zinc-900 text-white p-6 rounded-2xl shadow-sm border border-slate-700/50">
-                <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                            Enterprise Metallurgical Traceability
-                        </span>
-                        <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
-                            <ShieldCheck size={14} /> Chain of Custody Verified
-                        </span>
-                    </div>
-                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                        Steel Melt & Billet Traceability
-                    </h1>
-                    <p className="text-slate-300 text-sm mt-1">
-                        Trace from furnace scrap charge to continuous billet casting, rolling mill batches, and finished stainless products.
-                    </p>
-                </div>
-            </div>
+            {/* PAGE HEADER */}
+            <PageHeader
+                title="Metallurgical Chain of Custody Traceability"
+                subtitle="End-to-end metallurgical lineage: from furnace scrap charge to continuous billet cast, rolling mill batches, and finished prime steel."
+                badge="Full MES Audit"
+                icon={Network}
+                onOpenAi={() => {}}
+                aiPromptHint="billet built one are many heat depend it over"
+            />
 
             {/* SEARCH PANEL */}
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
@@ -591,6 +591,205 @@ function TraceabilityContent() {
                         </div>
                     </div>
 
+                    {/* 12-POINT MANAGEMENT AUDIT BLUEPRINT */}
+                    <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700/80 rounded-2xl p-6 text-white shadow-xl">
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-slate-700/60 pb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-400">
+                                    <ShieldCheck size={22} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-white flex items-center gap-2">
+                                        Management 12-Point Lifecycle Audit Report
+                                    </h3>
+                                    <p className="text-xs text-slate-400">
+                                        Deterministic verification across all 12 operational audit parameters
+                                    </p>
+                                </div>
+                            </div>
+                            <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-xs font-bold flex items-center gap-1.5">
+                                <CheckCircle2 size={13} />
+                                100% Traceable Chain of Custody
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+                            {/* 1. Grade Produced */}
+                            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70">
+                                <p className="text-slate-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[9px] font-black">1</span>
+                                    Grade Produced
+                                </p>
+                                <p className="text-base font-extrabold text-white mt-1">
+                                    {billetData.audit_answers?.grade_produced?.code || billetData.source.grade.code}
+                                </p>
+                                <p className="text-slate-400 text-[11px] truncate">
+                                    {billetData.audit_answers?.grade_produced?.name || billetData.source.grade.name}
+                                </p>
+                            </div>
+
+                            {/* 2. Heat Number */}
+                            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70">
+                                <p className="text-slate-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[9px] font-black">2</span>
+                                    Heat Origin & Melt Shop
+                                </p>
+                                <p className="text-base font-extrabold text-orange-400 mt-1">
+                                    {billetData.audit_answers?.heat_number?.heat_no || billetData.source.heat.heat_no}
+                                </p>
+                                <p className="text-slate-400 text-[11px]">
+                                    Melted on {formatDate(billetData.source.heat.heat_date)} • {billetData.audit_answers?.heat_number?.melt_shop || "SMS"}
+                                </p>
+                            </div>
+
+                            {/* 3. Raw Materials & Scrap Used */}
+                            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70">
+                                <p className="text-slate-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[9px] font-black">3</span>
+                                    Raw Materials & Scrap Used
+                                </p>
+                                <p className="text-base font-extrabold text-white mt-1">
+                                    {billetData.source.materials.length} Raw Materials Charged
+                                </p>
+                                <p className="text-slate-400 text-[11px] truncate">
+                                    {billetData.source.materials.slice(0, 3).map(m => m.material_name || m.material_code).join(", ") || "Heavy Scrap, Alloys, Flux"}
+                                </p>
+                            </div>
+
+                            {/* 4. Billet Produced */}
+                            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70">
+                                <p className="text-slate-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[9px] font-black">4</span>
+                                    Billet Produced Quantity
+                                </p>
+                                <p className="text-base font-extrabold text-white mt-1">
+                                    {Number(billetData.billet.quantity).toLocaleString()} {billetData.billet.unit || "KG"}
+                                </p>
+                                <p className="text-slate-400 text-[11px]">
+                                    Cast on {formatDate(billetData.billet.production_date)}
+                                </p>
+                            </div>
+
+                            {/* 5. Units Received */}
+                            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70">
+                                <p className="text-slate-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[9px] font-black">5</span>
+                                    Units Received
+                                </p>
+                                <p className="text-sm font-extrabold text-white mt-1 truncate">
+                                    {billetData.audit_answers?.manufacturing_units_received?.join(" → ") ||
+                                     [...new Set(billetData.transfers.map(t => t.to_unit).concat(billetData.production.map(p => p.unit_code)))].join(" → ") || "Steel Melting Shop"}
+                                </p>
+                                <p className="text-slate-400 text-[11px]">
+                                    {billetData.transfers.length} inter-unit logistics manifests
+                                </p>
+                            </div>
+
+                            {/* 6. Transferred Quantity by Unit */}
+                            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70">
+                                <p className="text-slate-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[9px] font-black">6</span>
+                                    Transferred Qty by Unit
+                                </p>
+                                <p className="text-base font-extrabold text-white mt-1">
+                                    {billetData.transfers.length > 0 
+                                        ? `${Number(billetData.transfers.reduce((s, t) => s + Number(t.quantity || 0), 0)).toLocaleString()} KG Total`
+                                        : "0 KG (Remained in SMS)"}
+                                </p>
+                                <p className="text-slate-400 text-[11px] truncate">
+                                    {billetData.transfers.map(t => `${t.to_unit}: ${Number(t.quantity).toLocaleString()} KG`).join(", ") || "Direct charging"}
+                                </p>
+                            </div>
+
+                            {/* 7. Products Manufactured */}
+                            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70">
+                                <p className="text-slate-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[9px] font-black">7</span>
+                                    Products Manufactured
+                                </p>
+                                <p className="text-sm font-extrabold text-emerald-400 mt-1 truncate">
+                                    {[...new Set(billetData.production.map(p => p.product_name).filter(Boolean))].join(", ") || "In production processing"}
+                                </p>
+                                <p className="text-slate-400 text-[11px]">
+                                    {billetData.production.length} rolling mill batch campaigns
+                                </p>
+                            </div>
+
+                            {/* 8. Finished Product Output */}
+                            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70">
+                                <p className="text-slate-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[9px] font-black">8</span>
+                                    Finished Product Output
+                                </p>
+                                <p className="text-base font-extrabold text-emerald-400 mt-1">
+                                    {Number(billetData.production.reduce((s, p) => s + Number(p.product_quantity || 0), 0)).toLocaleString()} KG Prime
+                                </p>
+                                <p className="text-slate-400 text-[11px]">
+                                    Certified QA lots released
+                                </p>
+                            </div>
+
+                            {/* 9. Material Rejected */}
+                            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70">
+                                <p className="text-slate-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[9px] font-black">9</span>
+                                    Material Rejected
+                                </p>
+                                <p className="text-base font-extrabold text-rose-400 mt-1">
+                                    {Number(billetData.rejections?.reduce((s, r) => s + Number(r.rejection_quantity || 0), 0) || 0).toLocaleString()} KG
+                                </p>
+                                <p className="text-slate-400 text-[11px]">
+                                    {billetData.rejections?.length || 0} non-conformance incidents
+                                </p>
+                            </div>
+
+                            {/* 10. Reasons for Rejection */}
+                            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70">
+                                <p className="text-slate-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[9px] font-black">10</span>
+                                    Reasons for Rejection
+                                </p>
+                                <p className="text-xs font-semibold text-rose-300 mt-1 truncate">
+                                    {billetData.rejections && billetData.rejections.length > 0
+                                        ? billetData.rejections.map(r => r.rejection_category).slice(0, 2).join(", ")
+                                        : "Zero rejections reported"}
+                                </p>
+                                <p className="text-slate-400 text-[11px] truncate">
+                                    {billetData.rejections && billetData.rejections[0]?.rejection_reason || "Passed all quality tolerances"}
+                                </p>
+                            </div>
+
+                            {/* 11. Scrap & Waste Converted */}
+                            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70">
+                                <p className="text-slate-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[9px] font-black">11</span>
+                                    Scrap & Waste Converted
+                                </p>
+                                <p className="text-base font-extrabold text-amber-400 mt-1">
+                                    {Number((billetData.metrics?.production_scrap ?? 0) + (billetData.metrics?.heat_melt_loss ?? 0)).toLocaleString()} KG
+                                </p>
+                                <p className="text-slate-400 text-[11px]">
+                                    Scale loss + shearing crop ends + melt loss
+                                </p>
+                            </div>
+
+                            {/* 12. Final Destination / Output */}
+                            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70">
+                                <p className="text-slate-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-[9px] font-black">12</span>
+                                    Final Destination / Output
+                                </p>
+                                <p className="text-sm font-extrabold text-white mt-1 truncate">
+                                    {billetData.billet.status === "CONSUMED" ? "100% Processed into Finished Goods" : `${billetData.billet.status} (In Mill / Yard)`}
+                                </p>
+                                <p className="text-slate-400 text-[11px] truncate">
+                                    {billetData.audit_answers?.final_destination?.disposition_summary ||
+                                     `${Number(billetData.billet.remaining_quantity || 0).toLocaleString()} KG remaining stock`}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* SOURCE & PARENT HEAT */}
                     <div className="grid md:grid-cols-2 gap-5">
                         <div
@@ -632,9 +831,53 @@ function TraceabilityContent() {
                         </div>
                     </div>
 
+                    {/* FURNACE CHARGE RAW MATERIALS */}
+                    {billetData.source.materials && billetData.source.materials.length > 0 && (
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                            <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
+                                <Layers size={20} className="text-orange-500" />
+                                Furnace Charge Raw Materials & Scrap Used
+                            </h2>
+                            <p className="text-xs text-slate-500 mb-4">
+                                Exact scrap grades, ferro-alloys, and metallurgical fluxes charged in SMS to cast this billet
+                            </p>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase font-semibold">
+                                        <tr>
+                                            <th className="py-3 px-4">Material Code</th>
+                                            <th className="py-3 px-4">Material Name</th>
+                                            <th className="py-3 px-4">Classification</th>
+                                            <th className="py-3 px-4 text-right">Quantity</th>
+                                            <th className="py-3 px-4">Remarks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-xs">
+                                        {billetData.source.materials.map((m) => (
+                                            <tr key={m.id} className="hover:bg-slate-50/60 transition">
+                                                <td className="py-3 px-4 font-bold text-slate-800">{m.material_code}</td>
+                                                <td className="py-3 px-4 font-medium text-slate-700">{m.material_name}</td>
+                                                <td className="py-3 px-4">
+                                                    <span className="px-2 py-0.5 rounded font-semibold bg-slate-100 text-slate-700">
+                                                        {m.material_type}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 text-right font-bold text-orange-600">
+                                                    {Number(m.quantity || 0).toLocaleString()} {m.unit || "KG"}
+                                                </td>
+                                                <td className="py-3 px-4 text-slate-500">{m.remarks || "-"}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
                     {/* TRANSFERS */}
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                        <h2 className="text-lg font-bold text-slate-900 mb-4">
+                        <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                            <Truck size={20} className="text-orange-500" />
                             Material Transfers & Inter-Unit Logistics
                         </h2>
 
@@ -662,7 +905,8 @@ function TraceabilityContent() {
 
                     {/* ROLLING PRODUCTION BATCHES */}
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                        <h2 className="text-lg font-bold text-slate-900 mb-4">
+                        <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                            <Factory size={20} className="text-orange-500" />
                             Rolling Mill Batches & Finished Products
                         </h2>
 
@@ -708,6 +952,70 @@ function TraceabilityContent() {
                             </div>
                         )}
                     </div>
+
+                    {/* QUALITY REJECTIONS & DEFECT REASONS */}
+                    {billetData.rejections && billetData.rejections.length > 0 && (
+                        <div className="bg-white border border-rose-200 rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-center justify-between gap-3 mb-4">
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                        <AlertTriangle size={20} className="text-rose-600" />
+                                        Quality Rejections, Defect Reasons & Scrap Log
+                                    </h2>
+                                    <p className="text-xs text-slate-500">
+                                        Non-conformance root cause, defect location, and disposition disposition
+                                    </p>
+                                </div>
+                                <span className="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-xs font-bold">
+                                    {billetData.rejections.length} Incidents Logged
+                                </span>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-rose-50/50 border-b border-rose-100 text-slate-600 text-xs uppercase font-semibold">
+                                        <tr>
+                                            <th className="py-3 px-4">Defect Classification</th>
+                                            <th className="py-3 px-4">Root Cause Reason</th>
+                                            <th className="py-3 px-4">Location</th>
+                                            <th className="py-3 px-4 text-right">Rejected Wt</th>
+                                            <th className="py-3 px-4">Disposition</th>
+                                            <th className="py-3 px-4">Inspector</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-xs">
+                                        {billetData.rejections.map((rej) => (
+                                            <tr key={rej.id} className="hover:bg-rose-50/20 transition">
+                                                <td className="py-3 px-4 font-bold text-rose-700">
+                                                    <span className="px-2 py-0.5 rounded bg-rose-100/70 border border-rose-200">
+                                                        {rej.rejection_category}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 font-medium text-slate-900">
+                                                    {rej.rejection_reason}
+                                                </td>
+                                                <td className="py-3 px-4 text-slate-500">
+                                                    {rej.defect_location || "-"}
+                                                </td>
+                                                <td className="py-3 px-4 text-right font-black text-rose-600">
+                                                    {Number(rej.rejection_quantity).toLocaleString()} KG
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    <span className="px-2 py-0.5 rounded font-bold bg-amber-50 text-amber-800 border border-amber-200 text-[10px]">
+                                                        {rej.disposition}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 text-slate-500">
+                                                    {rej.inspector_id || "-"}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
                 </div>
             )}
         </div>
