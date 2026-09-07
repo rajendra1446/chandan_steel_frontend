@@ -67,7 +67,7 @@ const menuSections: MenuSection[] = [
         ],
     },
     {
-        sectionTitle: "ROLLING & LOGISTICS",
+        sectionTitle: "MANUFACTURING & PRODUCTION",
         items: [
             {
                 name: "Unit Transfers",
@@ -75,7 +75,7 @@ const menuSections: MenuSection[] = [
                 icon: ArrowRightLeft,
             },
             {
-                name: "Rolling Mill Runs",
+                name: "Production Batches",
                 href: "/dashboard/production",
                 icon: Factory,
             },
